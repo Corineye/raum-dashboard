@@ -50,9 +50,10 @@ class RaumDashboardPanel extends HTMLElement {
     if (this._rahmen) return;
     const basis = (this._konf && this._konf.basis) || "/raum_dashboard_dateien";
     const v = (this._konf && this._konf.version) || "0";
-    this.style.cssText = "display:block;position:relative;width:100%;min-height:100vh;min-height:100dvh;background:#0b1111";
+    // Feste Höhe statt 100 %: hängt nicht davon ab, wie hoch Home Assistant den Panel-Rahmen macht
+    this.style.cssText = "display:block;position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;background:#0b1111";
     const rahmen = document.createElement("iframe");
-    rahmen.src = `${basis}/arbeitszimmer.html?v=${v}`;
+    rahmen.src = `${basis}/arbeitszimmer.html?v=${v}${this._narrow ? "&schmal=1" : ""}`;
     rahmen.title = "3D-Arbeitszimmer";
     rahmen.style.cssText = "border:0;position:absolute;left:0;top:0;width:100%;height:100%;display:block";
     this.appendChild(rahmen);

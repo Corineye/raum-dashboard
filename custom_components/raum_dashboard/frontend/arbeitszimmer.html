@@ -21,6 +21,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-app
 .head{position:absolute;left:14px;top:12px;z-index:3;pointer-events:none}
 .head b{font-size:17px;letter-spacing:.01em}
 .head span{display:block;color:var(--muted);font-size:12px}
+body.schmal .head{left:60px}
+body.schmal .wip{top:auto;bottom:12px}
 .wip{position:absolute;right:12px;top:12px;z-index:3;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);border:1px solid #fbbf2466;border-radius:999px;padding:3px 10px;background:#fbbf2412}
 .pin{position:absolute;left:0;top:0;z-index:2;transform:translate(-50%,-100%);white-space:nowrap;font-size:11.5px;padding:3px 8px;border-radius:9px;
   background:var(--glass);border:1px solid #5eead466;color:var(--fg);cursor:pointer;box-shadow:0 0 12px #5eead433;will-change:transform}
@@ -56,7 +58,7 @@ button.on{border-color:var(--mint);color:var(--mint)}
   <div class="card stage" id="stage">
     <canvas id="c"></canvas>
     <div class="head"><b>Arbeitszimmer</b><span>Raum 3 · 3,0 × 4,2 m · Tür oben links im Plan, Fenster gegenüber</span></div>
-    <div class="wip">Work in Progress</div>
+    <div class="wip">Work in Progress · <span id="ver"></span></div>
   </div>
   <aside class="side">
     <section class="card">
@@ -88,7 +90,7 @@ button.on{border-color:var(--mint);color:var(--mint)}
       <h2>Stand</h2>
       <div class="row"><span>Grundriss</span><span>nach deinen Maßen</span></div>
       <div class="row"><span>Möbel</span><span>Klötze, Maße geschätzt</span></div>
-      <div class="row"><span>Geräte-Zustände</span><span>noch nicht verbunden</span></div>
+      <div class="row"><span>Geräte-Zustände</span><span id="verb">noch nicht verbunden</span></div>
       <div class="row"><span>Lichteffekte</span><span>folgt</span></div>
     </section>
   </aside>
@@ -509,7 +511,7 @@ button.on{border-color:var(--mint);color:var(--mint)}
   function fmtNum(x,u){return x==null?'?':String(x).replace('.',',')+(u||'')}
   window.addEventListener('message',function(ev){
     var m=ev.data;if(!m||m.type!=='raum-states')return;var v=m.v||{};
-    if(!LIVE){LIVE=true;document.querySelectorAll('[data-preset]').forEach(function(b){b.style.display='none'});document.querySelectorAll('h2,h3,.h').forEach(function(h){if(/^Licht im Modell/i.test(h.textContent))h.textContent='Licht';});}
+    if(!LIVE){LIVE=true;document.getElementById('verb').textContent='live aus Home Assistant';document.querySelectorAll('[data-preset]').forEach(function(b){b.style.display='none'});document.querySelectorAll('h2,h3,.h').forEach(function(h){if(/^Licht im Modell/i.test(h.textContent))h.textContent='Licht';});}
     ['deck','piano','iris','desk'].forEach(function(id){var s=v[id];if(!s)return;var L=lightById(id);
       L.on=!!s.on;if(s.pct!=null)L.lvl=Math.max(.1,s.pct/100);if(s.color)L.color=s.color;});
     applyLights();
@@ -519,6 +521,7 @@ button.on{border-color:var(--mint);color:var(--mint)}
     if(v.robi)setDev('Robi',v.robi.status,'Robi: '+v.robi.status+'. Steckdose '+(v.robi.steckdose?'an':'aus')+'.');
     if(v.drucker)setDev('3D-Drucker P1S',v.drucker.steckdose?fmtNum(v.drucker.watt,' W'):'aus, 0 W','Steckdose '+(v.drucker.steckdose?'an, '+fmtNum(v.drucker.watt,' W'):'aus, 0 W')+'. Verbrauch diesen Monat '+fmtNum(v.drucker.monat,' kWh')+'. Drucker: '+v.drucker.p1s+'.');
   });
+  (function(){var q=location.search;if(/schmal=1/.test(q))document.body.classList.add('schmal');var m=/v=([^&]+)/.exec(q);document.getElementById('ver').textContent=m?'v'+m[1]:'';})();
   resize();view('iso');preset('an');updateSun(15);out({type:'raum-ready'});
   (function loop(){requestAnimationFrame(loop);controls.update();renderer.render(scene,camera);placePins();})();
 })();
