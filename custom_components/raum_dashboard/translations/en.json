@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Raum-Dashboard",
+        "description": "Richtet die Seite „Räume“ in der Seitenleiste ein. Es sind keine Einstellungen nötig."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Das Raum-Dashboard ist schon eingerichtet."
+    }
+  }
+}

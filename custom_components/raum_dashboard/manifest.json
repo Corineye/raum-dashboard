@@ -1,0 +1,13 @@
+{
+  "domain": "raum_dashboard",
+  "name": "Raum-Dashboard",
+  "codeowners": ["@Corineye"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend", "panel_custom"],
+  "documentation": "https://github.com/Corineye/raum-dashboard",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Corineye/raum-dashboard/issues",
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
