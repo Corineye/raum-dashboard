@@ -50,7 +50,7 @@ class RaumDashboardPanel extends HTMLElement {
     if (this._rahmen) return;
     const basis = (this._konf && this._konf.basis) || "/raum_dashboard_dateien";
     const v = (this._konf && this._konf.version) || "0";
-    this.style.cssText = "display:block;position:relative;height:100%;background:#0b1111";
+    this.style.cssText = "display:block;position:relative;width:100%;height:100vh;height:100dvh;background:#0b1111";
     const rahmen = document.createElement("iframe");
     rahmen.src = `${basis}/arbeitszimmer.html?v=${v}`;
     rahmen.title = "3D-Arbeitszimmer";
