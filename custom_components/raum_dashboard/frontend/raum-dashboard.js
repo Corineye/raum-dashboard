@@ -120,7 +120,7 @@ class RaumDashboardPanel extends HTMLElement {
     const he = this._finde("heizung");
     if (he && he.state !== "unavailable") {
       const a = he.attributes || {};
-      v.heizung = { modus: he.state === "heat" ? "heizt" : he.state === "off" ? "ist aus" : he.state, ist: a.current_temperature, soll: a.temperature };
+      v.heizung = { modus: he.state === "heat" ? "heizt" : he.state === "off" ? "ist aus" : he.state, ist: a.current_temperature, soll: a.temperature, aktion: a.hvac_action || null };
     }
     const ro = this._finde("robi"), rd = this._finde("robiDose");
     if (ro) v.robi = { status: ROBI[ro.state] || ro.state, steckdose: rd ? rd.state === "on" : false };
