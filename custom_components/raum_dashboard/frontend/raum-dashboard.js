@@ -1,26 +1,7 @@
-// Panel „Räume“: bettet die 3D-Seite ein, schickt ihr die Zustände aus Home Assistant
-// und führt Schaltwünsche für die Lampen aus. Gerätenamen wie in Home Assistant.
-const NAMEN = {
-  deck: "Deckenlicht Arbeitszimmer",
-  piano: "Ikea E14 22",
-  iris: "Iris Leuchte Arbeitszimmer",
-  desk: "Schreibtischlampe",
-  luftT: "Luft-Sensor Arbeitszimmer Temperatur",
-  luftH: "Luft-Sensor Arbeitszimmer Luftfeuchtigkeit",
-  fenster: "Fenster Arbeitzimmer",
-  heizung: "Heizung Arbeitszimmer",
-  robi: "Robi",
-  robiDose: "Steckdose Robi",
-  druckerDose: "3d-Drucker",
-  druckerWatt: "3d-Drucker Derzeitiger Verbrauch",
-  druckerMonat: "3d-Drucker Der Verbrauch dieses Monats",
-  p1s: "3D-Drucker P1S Online",
-};
-const ROBI = { docked: "in der Station", cleaning: "saugt", returning: "fährt zurück", paused: "pausiert", idle: "wartet", error: "Fehler" };
-const FARBFAEHIG = ["hs", "xy", "rgb", "rgbw", "rgbww"];
-
-const hex = (rgb) => "#" + rgb.map((x) => Math.max(0, Math.min(255, x | 0)).toString(16).padStart(2, "0")).join("");
-const rgbAus = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+// Panel „Räume“: bettet die 3D-Wohnung ein, schickt ihr Geräteliste, Zustände und gespeicherte Punkte
+// aus Home Assistant und führt Schaltwünsche aus. Punkte speichert die Integration (punkte.py).
+const SCHALTBAR = ["light", "switch", "fan", "input_boolean"];
+const DOMAIN = "raum_dashboard";
 
 class RaumDashboardPanel extends HTMLElement {
   constructor() {
@@ -28,7 +9,8 @@ class RaumDashboardPanel extends HTMLElement {
     this._hass = null;
     this._bereit = false;
     this._zuletzt = "";
-    this._ids = {};
+    this._anzahl = -1;
+    this._gewollt = [];
     this._onMsg = (ev) => this._nachricht(ev);
   }
 
@@ -53,8 +35,8 @@ class RaumDashboardPanel extends HTMLElement {
     // Feste Höhe statt 100 %: hängt nicht davon ab, wie hoch Home Assistant den Panel-Rahmen macht
     this.style.cssText = "display:block;position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;background:#0b1111";
     const rahmen = document.createElement("iframe");
-    rahmen.src = `${basis}/arbeitszimmer.html?v=${v}${this._narrow ? "&schmal=1" : ""}`;
-    rahmen.title = "3D-Arbeitszimmer";
+    rahmen.src = `${basis}/wohnung.html?v=${v}${this._narrow ? "&schmal=1" : ""}`;
+    rahmen.title = "3D-Wohnung";
     rahmen.style.cssText = "border:0;position:absolute;left:0;top:0;width:100%;height:100%;display:block";
     this.appendChild(rahmen);
     const menu = document.createElement("button");
@@ -72,107 +54,112 @@ class RaumDashboardPanel extends HTMLElement {
 
   disconnectedCallback() {
     window.removeEventListener("message", this._onMsg);
+    if (this._abo) this._abo.then((ab) => ab()).catch(() => {});
+    this._abo = null;
     this._rahmen = null;
     this._bereit = false;
   }
 
-  // Entität zu einem Anzeigenamen finden (Namen wie in Home Assistant, Groß-/Kleinschreibung egal)
-  _finde(schluessel) {
+  _post(m) {
+    if (this._rahmen && this._rahmen.contentWindow) this._rahmen.contentWindow.postMessage(m, "*");
+  }
+
+  // Geräteliste für die Auswahl beim Setzen eines Punkts; nur neu schicken, wenn Entitäten dazukommen oder wegfallen
+  _geraete() {
     const h = this._hass;
-    if (!h) return null;
-    const id = this._ids[schluessel];
-    if (id && h.states[id]) return h.states[id];
-    const ziel = NAMEN[schluessel].toLowerCase();
-    for (const [eid, s] of Object.entries(h.states)) {
-      if (((s.attributes && s.attributes.friendly_name) || "").toLowerCase() === ziel) {
-        this._ids[schluessel] = eid;
-        return s;
-      }
-    }
-    return null;
+    const ids = Object.keys(h.states);
+    if (ids.length === this._anzahl) return;
+    this._anzahl = ids.length;
+    const list = ids
+      .map((id) => {
+        const a = h.states[id].attributes || {};
+        return { id, n: a.friendly_name || id, dc: a.device_class || null };
+      })
+      .sort((x, y) => x.n.localeCompare(y.n, "de"));
+    this._post({ type: "raum-entities", list });
   }
 
-  _lampe(schluessel) {
-    const s = this._finde(schluessel);
-    if (!s || s.state === "unavailable" || s.state === "unknown") return null;
-    const a = s.attributes || {};
-    const o = { on: s.state === "on" };
-    if (a.brightness != null) o.pct = Math.round((a.brightness / 255) * 100);
-    if (Array.isArray(a.rgb_color)) o.color = hex(a.rgb_color);
-    return o;
-  }
-
+  // Zustände nur für die Geräte, die im Plan als Punkt vorkommen
   _zustaende() {
-    const num = (k) => {
-      const s = this._finde(k);
-      const x = s ? parseFloat(s.state) : NaN;
-      return Number.isNaN(x) ? null : x;
-    };
+    const h = this._hass;
     const v = {};
-    for (const k of ["deck", "piano", "iris", "desk"]) {
-      const l = this._lampe(k);
-      if (l) v[k] = l;
-    }
-    const t = num("luftT"), f = num("luftH");
-    if (t != null || f != null) v.luft = { t, h: f };
-    const fe = this._finde("fenster");
-    if (fe && fe.state !== "unavailable") v.fenster = { offen: fe.state === "on" };
-    const he = this._finde("heizung");
-    if (he && he.state !== "unavailable") {
-      const a = he.attributes || {};
-      v.heizung = { modus: he.state === "heat" ? "heizt" : he.state === "off" ? "ist aus" : he.state, ist: a.current_temperature, soll: a.temperature, aktion: a.hvac_action || null };
-    }
-    const ro = this._finde("robi"), rd = this._finde("robiDose");
-    if (ro) v.robi = { status: ROBI[ro.state] || ro.state, steckdose: rd ? rd.state === "on" : false };
-    const dd = this._finde("druckerDose");
-    if (dd) {
-      const p = this._finde("p1s");
-      v.drucker = {
-        steckdose: dd.state === "on",
-        watt: num("druckerWatt") || 0,
-        monat: num("druckerMonat"),
-        p1s: p && p.state === "on" ? "online" : "nicht erreichbar",
-      };
+    for (const id of this._gewollt) {
+      const s = h.states[id];
+      if (!s) continue;
+      const a = s.attributes || {};
+      const o = { s: s.state, n: a.friendly_name || id, u: a.unit_of_measurement || null, dc: a.device_class || null };
+      if (SCHALTBAR.includes(id.split(".")[0])) o.on = s.state === "on";
+      if (id.startsWith("climate.")) Object.assign(o, { ist: a.current_temperature, soll: a.temperature, aktion: a.hvac_action || null });
+      v[id] = o;
     }
     return v;
   }
 
   _senden() {
-    if (!this._bereit || !this._rahmen || !this._rahmen.contentWindow) return;
+    if (!this._bereit || !this._hass) return;
+    this._geraete();
     const v = this._zustaende();
     const text = JSON.stringify(v);
     if (text === this._zuletzt) return;
     this._zuletzt = text;
-    this._rahmen.contentWindow.postMessage({ type: "raum-states", v }, "*");
+    this._post({ type: "raum-states", v });
+  }
+
+  async _punkteLaden() {
+    try {
+      const r = await this._hass.callWS({ type: `${DOMAIN}/punkte` });
+      this._post({ type: "raum-punkte", punkte: r.punkte || {} });
+    } catch (e) {
+      this._post({ type: "raum-fehler", text: "Punkte konnten nicht geladen werden. Ist die Integration aktuell und Home Assistant neu gestartet?" });
+    }
+  }
+
+  async _punkteSpeichern(punkte) {
+    try {
+      await this._hass.callWS({ type: `${DOMAIN}/punkte/speichern`, punkte });
+    } catch (e) {
+      this._post({ type: "raum-fehler", text: "Speichern hat nicht geklappt: " + ((e && e.message) || "unbekannter Fehler") });
+      this._punkteLaden();
+    }
   }
 
   _nachricht(ev) {
     if (!this._rahmen || ev.source !== this._rahmen.contentWindow) return;
     const m = ev.data;
-    if (!m) return;
+    if (!m || !this._hass) return;
     if (m.type === "raum-ready") {
       this._bereit = true;
+      this._zuletzt = "";
+      this._anzahl = -1;
+      const admin = !!(this._hass.user && this._hass.user.is_admin);
+      this._post({ type: "raum-init", admin });
+      this._senden();
+      this._punkteLaden();
+      // Änderungen von einem anderen Gerät sofort übernehmen (nur für Administratoren abonnierbar)
+      if (admin && !this._abo) {
+        this._abo = this._hass.connection.subscribeEvents(() => this._punkteLaden(), `${DOMAIN}_punkte`);
+        this._abo.catch(() => {
+          this._abo = null;
+        });
+      }
+    } else if (m.type === "raum-want") {
+      this._gewollt = Array.isArray(m.ids) ? m.ids.filter((x) => typeof x === "string") : [];
       this._zuletzt = "";
       this._senden();
     } else if (m.type === "raum-call") {
       this._schalten(m);
+    } else if (m.type === "raum-save" && m.punkte && typeof m.punkte === "object") {
+      this._punkteSpeichern(m.punkte);
     }
   }
 
-  // Nur Lampen: an/aus, Helligkeit und (falls die Lampe es kann) Farbe
+  // Nur an/aus für Lampen, Schalter, Lüfter und Ein/Aus-Helfer, die als Punkt im Plan stehen
   _schalten(m) {
-    const s = this._finde(m.id);
-    if (!s || !s.entity_id.startsWith("light.")) return;
-    if (!m.on) {
-      this._hass.callService("light", "turn_off", { entity_id: s.entity_id });
-      return;
-    }
-    const a = s.attributes || {};
-    const modi = a.supported_color_modes || [];
-    const daten = { entity_id: s.entity_id };
-    if (modi.some((x) => x !== "onoff") && m.pct != null) daten.brightness_pct = Math.max(1, Math.min(100, m.pct));
-    if (modi.some((x) => FARBFAEHIG.includes(x)) && m.color) daten.rgb_color = rgbAus(m.color);
-    this._hass.callService("light", "turn_on", daten);
+    const ids = (Array.isArray(m.ids) ? m.ids : []).filter(
+      (id) => typeof id === "string" && this._gewollt.includes(id) && SCHALTBAR.includes(id.split(".")[0]) && this._hass.states[id]
+    );
+    if (!ids.length) return;
+    this._hass.callService("homeassistant", m.on ? "turn_on" : "turn_off", { entity_id: ids });
   }
 }
 

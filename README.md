@@ -2,7 +2,20 @@
 
 3D-Ansicht deiner Räume als Seite „Räume“ in der Home-Assistant-Seitenleiste. Läuft komplett lokal, keine Cloud, keine Bibliotheken aus dem Netz.
 
-Stand 0.1.0: Arbeitszimmer. Lampen zeigen und schalten den echten Zustand, Pins zeigen Luftsensor, Fenster, Heizung, Robi und Drucker-Steckdose.
+Stand 0.3.0: die ganze Wohnung (Wohnzimmer, Esszimmer, Arbeitszimmer, Flur, Schlafzimmer, Bad, Küche) in Schrägansicht von oben. Raum antippen zoomt hinein.
+
+## Eigene Punkte
+
+Oben links **✎ Punkte** (nur für Administratoren):
+
+1. Auf eine Stelle im Plan tippen (Boden, Wand oder Möbel). Dort entsteht ein neuer Punkt.
+2. Gerät aus Home Assistant suchen und wählen, Namen und Symbol anpassen, **Speichern**.
+3. Einen vorhandenen Punkt antippen, um ihn zu ändern, zu **verschieben** (danach neue Stelle antippen) oder zu **löschen**.
+4. **✓ Fertig** beendet das Bearbeiten.
+
+Lampen, Schalter, Lüfter und Ein/Aus-Helfer werden als runder Knopf gezeigt und schalten beim Antippen. Alles andere (Sensoren, Fenster, Heizung, Robi …) zeigt seinen Wert. Die Lampen und Sensoren aus dem Plan sind schon als Punkte da und lassen sich genauso mit einem Gerät verbinden. Gestrichelt umrandete Punkte haben noch kein Gerät.
+
+Die Punkte speichert die Integration in Home Assistant (`.storage/raum_dashboard.punkte`). Sie sind damit auf Handy und PC gleich und landen in den Backups.
 
 ## Installation (HACS)
 
@@ -14,8 +27,9 @@ Stand 0.1.0: Arbeitszimmer. Lampen zeigen und schalten den echten Zustand, Pins 
 ## Was die Seite darf
 
 - Lesen: alle Zustände, die das Home-Assistant-Frontend dem angemeldeten Benutzer zeigt.
-- Schalten: nur Lampen (`light.turn_on` / `light.turn_off`), nur durch Klick in der Seite. Sonst nichts.
+- Schalten: nur an/aus für Lampen, Schalter, Lüfter und Ein/Aus-Helfer, die als Punkt im Plan stehen, nur durch Antippen in der Seite. Sonst nichts.
+- Speichern: nur die eigenen Punkte, nur Administratoren.
 
 ## Gerätenamen
 
-Die Seite findet Geräte über ihren Anzeigenamen (`frontend/raum-dashboard.js`, Block `NAMEN`). Wird ein Gerät umbenannt, dort anpassen.
+Die Lampen und Sensoren im Arbeitszimmer sowie Robi werden beim ersten Öffnen über ihren Anzeigenamen gefunden (`frontend/wohnung.html`, Block `HINT`). Alles andere verbindest du selbst über **✎ Punkte**.

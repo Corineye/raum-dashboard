@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Räume</title>
+<style>
+:root{--bg:#0b1111;--panel:#101a19e6;--line:#24403b;--fg:#e4f3ef;--muted:#8aa39e;--mint:#5eead4;--amber:#fbbf24;--bulb-off:#5d7f9e;--bulb-on:#ffd24a;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 Inter,system-ui,sans-serif;overflow:hidden;
+  background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:32px 32px}
+#stage{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.chip{position:absolute;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(8px)}
+#title{left:max(14px,env(safe-area-inset-left,0px));top:max(14px,env(safe-area-inset-top,0px));padding:8px 14px}
+#title b{font-size:16px}#title span{display:block;color:var(--muted);font-size:12px}
+.wip{position:absolute;z-index:5;right:max(14px,env(safe-area-inset-right,0px));top:max(14px,env(safe-area-inset-top,0px));font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);border:1px solid #fbbf2466;border-radius:999px;padding:3px 10px;background:#fbbf2412}
+#dock{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(760px,calc(100% - 28px));padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px;align-items:center;min-width:0}
+.rooms{overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.rooms::-webkit-scrollbar{display:none}
+button{font:inherit;color:var(--fg);background:#ffffff0a;border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;white-space:nowrap;min-height:40px}
+button:hover,button.on{border-color:var(--mint);color:var(--mint)}
+button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.sp{flex:1}
+#ctx{flex-wrap:wrap}
+.stat{color:var(--muted);font-size:12px;white-space:nowrap}
+#pins{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.bulb{position:absolute;left:0;top:0;pointer-events:auto;width:40px;height:40px;padding:0;border-radius:50%;background:#0b1111cc;border:1px solid var(--line);display:grid;place-items:center;color:var(--bulb-off)}
+.bulb svg{width:22px;height:22px;fill:currentColor}
+.bulb.on{color:var(--bulb-on);border-color:#ffd24a88;box-shadow:0 0 18px #ffd24a66}
+.bulb:hover{color:var(--bulb-on)}
+.lbl{position:absolute;left:0;top:0;pointer-events:auto;font-size:12px;padding:3px 10px;border-radius:999px;background:#0b1111cc;border:1px solid var(--line);min-height:0}
+.lbl.hide{display:none}
+.sens{position:absolute;left:0;top:0;pointer-events:auto;font-size:11px;padding:2px 8px 2px 4px;border-radius:999px;background:#0b1111d9;border:1px solid #5eead466;color:var(--fg);min-height:0;display:flex;gap:5px;align-items:center;white-space:nowrap}
+.sens i{font-style:normal;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#5eead422;color:var(--mint);font-size:11px}
+.sens span{color:var(--muted)}
+.bulb.frei,.sens.frei{border-style:dashed;opacity:.7}
+.bulb b{font-size:16px;font-weight:600}
+.sens i svg{width:12px;height:12px;fill:currentColor}
+.sens.heizt,.bulb.heizt{border-color:#fb923c;box-shadow:0 0 16px #fb923c88}
+.sens.heizt i{background:#fb923c33;color:#fb923c}
+body.edit .bulb,body.edit .sens{outline:2px dashed #5eead488;outline-offset:2px}
+body.edit canvas{cursor:crosshair}
+#editBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(78px,calc(env(safe-area-inset-top,0px) + 64px));background:var(--panel)}
+#hint{left:50%;transform:translateX(-50%);top:max(14px,env(safe-area-inset-top,0px));max-width:min(460px,calc(100% - 28px));padding:8px 14px;font-size:13px;text-align:center;z-index:6;border-color:#5eead466}
+#sheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 28px));max-height:min(78vh,640px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
+#sheet label,#sheet .lab{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}
+#sheet input{font:inherit;color:var(--fg);background:#0b1111;border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:40px}
+#sheet input:focus{outline:2px solid var(--mint);outline-offset:1px}
+#shListe{display:flex;flex-direction:column;gap:4px;max-height:34vh;overflow:auto;padding-right:2px}
+#shListe .ent{display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left;white-space:normal;min-height:0;padding:7px 10px}
+#shListe .ent small{color:var(--muted);font-size:11px}
+#shListe .ent.on small{color:var(--mint)}
+#shListe .leer{margin:4px 2px;color:var(--muted);font-size:12px}
+.syms{display:flex;flex-wrap:wrap;gap:6px}
+.syms .sym{width:40px;height:40px;padding:0;display:grid;place-items:center;font-size:16px}
+.syms .sym svg{width:20px;height:20px;fill:currentColor}
+[hidden]{display:none!important}
+body.schmal #title{left:60px}
+@media (max-width:640px){.wip{display:none}.bulb{width:44px;height:44px}}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="pins"></div>
+<div class="chip" id="title"><b>Wohnung</b><span id="sub">Alle Räume</span></div>
+<button type="button" id="editBtn" hidden>✎ Punkte</button>
+<div class="chip" id="hint" role="status" hidden></div>
+<div class="chip" id="sheet" role="dialog" aria-labelledby="shT" hidden>
+  <div class="row"><b id="shT">Neuer Punkt</b><span class="sp"></span><button type="button" id="shX" aria-label="Schließen">✕</button></div>
+  <label>Name<input id="shName" maxlength="80" autocomplete="off" placeholder="z. B. Stehlampe"></label>
+  <label>Gerät aus Home Assistant<input id="shSuch" type="search" autocomplete="off" placeholder="Suchen nach Name oder entity_id"></label>
+  <div id="shListe" role="listbox" aria-label="Geräte"></div>
+  <div class="lab">Symbol</div>
+  <div class="syms" id="shSym"></div>
+  <div class="row"><button type="button" id="shDel">Löschen</button><button type="button" id="shMove">Verschieben</button><span class="sp"></span><button type="button" id="shOk" class="on">Speichern</button></div>
+</div>
+<div class="wip" id="ver">Räume</div>
+<div class="chip" id="dock">
+  <div class="row rooms" id="chips"></div>
+  <div class="row" id="ctx"></div>
+</div>
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+(function(){
+  // Grundriss nach den Maßen aus der Umzugs-PDF (Meter, x nach Osten, z nach Süden); Anordnung der Räume wie in der Robi-Karte
+  function R(x0,z0,x1,z1){return [x0,z0,x1,z1];}
+  function P(x,z){return [x,z];}
+  var WH=.55,WT=.1;
+  var AZX=5.6,AZZ=.3; // Arbeitszimmer: linke obere Ecke
+  function AZP(x,z){return [AZX+3-x,AZZ+4.2-z];} // Punkt im Modell (Tür bei z=0) -> Wohnung (Modell wird um 180° gedreht)
+  var ROOMS=[
+    {id:'wz',n:'Wohnzimmer',rects:[R(0,0,3.0,4.2),R(0,4.2,3.4,5.05)],grp:'wz',col:0xd9a441,lamps:[{n:'Deckenlicht',p:P(1.75,2.2),on:true,m:'deck'},{n:'Stehlampe',p:P(.2,.2),on:false,m:'floor'},{n:'Fernseher',p:P(1.5,4.75),on:false,m:'tv',ic:'tv'},{n:'Ambilight',p:P(2.25,4.95),on:false,m:'amb'}],
+      sens:[{n:'Bewegung',i:'◎',p:[.3,4.95,2.2]}]},
+    {id:'ez',n:'Esszimmer',rects:[R(3.0,0,5.6,4.2)],grp:'wz',col:0xc98a3a,lamps:[{n:'Esstischlampe',p:P(4.4,1.8),on:true,m:'ez'}]},
+    {id:'az',n:'Arbeitszimmer',rects:[R(AZX,AZZ,AZX+3,AZZ+4.2)],col:0xe0829a,lamps:[
+      {n:'Deckenlicht',p:AZP(1.5,2.1),on:true,m:'deck'},{n:'Klavierlampe',p:AZP(2.8,1.52),on:true,m:'piano'},{n:'Iris',p:AZP(2.65,3.98),on:true,m:'iris'},{n:'Schreibtischlampe',p:AZP(2.8,3.3),on:false,m:'desk'}]},
+    {id:'fl',n:'Flur',rects:[R(3.4,4.2,5.6,5.8),R(5.6,4.5,7.4,5.8)],col:0x4fc3c3,lamps:[{n:'Deckenlicht',p:P(5.2,5.1),on:false,m:'deck'}],
+      sens:[{n:'Temperatur',i:'°',p:[4.94,4.38,1.15]}]},
+    {id:'sz',n:'Schlafzimmer',rects:[R(0,5.05,3.4,8.9)],col:0x5b8bdc,lamps:[{n:'Deckenlicht',p:P(1.8,7.0),on:false,m:'deck'},{n:'Nachttisch Tür',p:P(3.15,5.96),on:false,m:'nl1'},{n:'Nachttisch Fenster',p:P(3.15,8.34),on:false,m:'nl2'},{n:'Bett-LED',p:P(3.2,7.15),on:true,m:'led'},{n:'Schreibtisch',p:P(.4,8.45),on:false,m:'desk'}]},
+    {id:'bd',n:'Badezimmer',rects:[R(3.4,5.8,5.2,8.9)],col:0x5b8bdc,lamps:[{n:'Deckenlicht',p:P(4.3,7.35),on:false,m:'deck'},{n:'Lüftung',p:P(5.0,6.25),on:false,m:'fan',ic:'fan'}],
+      sens:[{n:'Temperatur',i:'°',p:[4.6,8.85,1.15]},{n:'Bewegung',i:'◎',p:[3.55,5.93,2.35]}]},
+    {id:'ku',n:'Küche',rects:[R(5.2,5.8,7.4,8.9)],col:0xd9a441,lamps:[{n:'Deckenlicht',p:P(6.3,7.4),on:true,m:'deck'},{n:'Dunstabzug',p:P(5.5,7.0),on:false,m:'hood'},{n:'Arbeitslicht',p:P(7.05,7.25),on:true,m:'work'}],
+      sens:[{n:'Raumthermostat',i:'°',p:[7.14,6.28,2.1]},{n:'Heizung',i:'♨',p:[6.3,8.75,.9]},{n:'Fenster',i:'▢',p:[6.71,8.84,1.6]},
+        {n:'Kühlschrank',i:'❄',p:[5.55,6.35,1.6]},{n:'Kühlschrank-Tür',i:'⌸',p:[5.95,6.35,1.3]},{n:'Gefrierfach',i:'❄',p:[5.55,6.35,.55]},{n:'Gefrierfach-Tür',i:'⌸',p:[5.95,6.35,.3]}]}
+  ];
+  var Q=new URLSearchParams(location.search);if(Q.get('v'))document.getElementById('ver').textContent='Räume v'+Q.get('v');if(Q.get('schmal'))document.body.classList.add('schmal');
+  var stage=document.getElementById('stage');
+  var renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio));stage.appendChild(renderer.domElement);
+  var canvas=renderer.domElement;
+  var scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1111);
+  var camera=new THREE.PerspectiveCamera(40,1,.1,200);
+  scene.add(new THREE.HemisphereLight(0xcfe9ff,0x1a2523,.85));
+  var dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(-4,10,3);scene.add(dl);
+  // Detailliertes Arbeitszimmer (aus arbeitszimmer-3d.html), 3,0 x 4,2 m, Tür vorn (z=0), Fenster hinten (z=4,2)
+  // Küche (IKEA Enhet, Malm, Besta) nach Fotos und Küchenplan; u quer (0 = Malm-Wand Ost), v ab Fensterwand (0) bis Türwand (3,0)
+  function buildKU(g){
+    var MINT=0x5eead4,WHITE=0xeceae4,OAK=0xc8955a,DARK=0x1b1d1f,STEEL=0x9aa3a6;
+    function bx(u0,u1,v0,v1,y0,y1,col,o){o=o||{};
+      var m=new THREE.Mesh(new THREE.BoxGeometry(u1-u0,y1-y0,v1-v0),new THREE.MeshStandardMaterial({color:col,roughness:o.r==null?.7:o.r,metalness:o.m||0,transparent:o.o!=null,opacity:o.o==null?1:o.o,emissive:o.e||0}));
+      m.position.set((u0+u1)/2,(y0+y1)/2,(v0+v1)/2);g.add(m);
+      if(o.l!==false){var e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:o.lc||0x9fd8cf,transparent:true,opacity:.12}));m.add(e);}
+      return m;}
+    // Malm-Seite (Osten): offenes Regal am Fenster, zwei Malm-Kommoden, Eichenplatte, Oberschränke mit Arbeitslicht, Besta-Vitrine an der Tür
+    bx(0,.5,.12,.55,0,.88,WHITE);bx(.02,.48,.14,.53,.3,.32,WHITE,{l:false});bx(.02,.48,.14,.53,.6,.62,WHITE,{l:false});
+    bx(0,.48,.55,2.2,0,.78,WHITE);
+    for(var i=0;i<3;i++){bx(.48,.49,.57,1.36,.04+i*.25,.27+i*.25,0xf4f3ef,{lc:0xbfbfbf});bx(.48,.49,1.4,2.18,.04+i*.25,.27+i*.25,0xf4f3ef,{lc:0xbfbfbf});}
+    bx(0,.62,.1,2.2,.88,.92,OAK,{r:.6,lc:0xd9bb86});
+    bx(.05,.42,.62,.98,.92,1.26,0x2a2d30);                                          // Tefal-Heißluftfritteuse
+    bx(.08,.4,.18,.52,.92,1.28,0xdedfe0,{m:.3});                                    // Monsieur Cuisine
+    bx(0,.35,.12,1.05,1.38,1.42,0x3a2e22);bx(0,.35,.12,1.05,1.78,1.82,0x3a2e22);   // zwei Wandregale bis zum Hängeschrank
+    bx(.02,.33,.15,.6,1.42,1.7,0xd8d8d8,{m:.5});                                    // Mikrowelle
+    bx(.06,.28,.7,.95,1.42,1.6,0x2a2d30,{m:.3});                                    // Toaster
+    bx(.03,.33,.15,.5,1.82,1.98,0x1b1d1f,{m:.3});                                   // Kontaktgrill
+    bx(.1,.25,.7,.85,1.82,2.05,0x2a2d30,{m:.3});                                    // Wasserkocher
+    bx(0,.35,1.05,2.2,1.45,2.25,WHITE);                                             // Oberschränke
+    bx(.34,.35,1.07,1.62,1.47,2.23,0xf7f6f2,{lc:0xbfbfbf});bx(.34,.35,1.65,2.18,1.47,2.23,0xf7f6f2,{lc:0xbfbfbf});
+    var work=new THREE.Mesh(new THREE.BoxGeometry(.04,.015,1.05),new THREE.MeshBasicMaterial({color:0x2a2a2a}));work.position.set(.3,1.44,1.62);g.add(work);
+    bx(0,.42,2.3,2.95,0,1.95,WHITE);                                                // Besta-Vitrine
+    bx(.42,.43,2.32,2.93,1.2,1.92,0x9be7ff,{o:.35,l:false});
+    bx(.12,.3,2.55,2.7,1.95,2.07,0xf5f5f5,{lc:MINT});                               // Raumthermostat oben drauf
+    // Herdseite (Westen): Regal mit Recyclingbox, Spüle, Spülmaschine, Ofen mit Kochfeld, Kühlschrank
+    var U0=2.09-.6,U1=2.09;
+    bx(U0,U1,.12,.4,0,.88,WHITE);bx(U0+.05,U1-.05,.15,.38,.05,.45,0xd6a07a);
+    bx(U0,U1,.4,2.2,0,.86,WHITE);
+    bx(U0-.01,U0,1.0,1.6,.1,.8,0xf4f3ef,{lc:0xbfbfbf});                            // Spülmaschinenfront
+    bx(U0-.01,U0,1.6,2.2,.1,.75,0x111214,{r:.3});                                   // Backofen
+    bx(U0-.04,U1,.1,2.2,.86,.9,OAK,{r:.6,lc:0xd9bb86});
+    bx(U0+.05,U0+.45,.5,.92,.86,.905,0x151515,{r:.4});                              // Spüle
+    bx(U1-.08,U1-.04,.7,.74,.9,1.25,0x151515);                                      // Armatur
+    bx(U0+.03,U1-.05,1.62,2.18,.9,.91,0x0d0d0f,{r:.2});                             // Kochfeld
+    bx(U1-.42,U1-.02,.14,.46,.9,1.25,0x1b1b1d);                                     // Kaffeevollautomat an der Wand, neben der Spüle
+    bx(U1-.62,U1,2.22,2.92,0,2.0,STEEL,{m:.6,r:.35});                               // Kühlschrank (oben Kühlteil, unten Gefrierteil)
+    bx(U1-.63,U1-.62,2.24,2.9,.68,.69,0x5a6366,{l:false});
+    bx(U1-.35,U1,.4,2.2,1.45,2.25,WHITE);                                           // Oberschränke
+    bx(U1-.45,U1,1.62,2.18,1.38,1.45,STEEL,{m:.6,r:.3});                            // Dunstabzugshaube
+    var hood=new THREE.Mesh(new THREE.BoxGeometry(.25,.01,.4),new THREE.MeshBasicMaterial({color:0x2a2a2a}));hood.position.set(U1-.22,1.375,1.9);g.add(hood);
+    // Fensterwand: Fenster, Heizung mit Thermostat links, Fenstersensor am Griff links
+    bx(.6,1.5,.0,.06,.95,2.1,0x9be7ff,{o:.12,lc:0x9be7ff});
+    bx(.6,1.5,.06,.14,.15,.75,0xf0f0ec,{r:.5});
+    bx(.55,.6,.08,.14,.6,.72,0xf5f5f5,{lc:MINT});                                   // Heizkörper-Thermostat links
+    bx(.62,.66,.04,.08,1.4,1.5,0xffffff,{lc:MINT});                                 // Fenstersensor am Griff
+    var deck=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.04,24),new THREE.MeshBasicMaterial({color:0x2a2a2a}));deck.position.set(1.05,2.45,1.5);g.add(deck);
+    return {deck:deck.material,hood:hood.material,work:work.material};
+  }
+  // Flur nach Fotos (Weltkoordinaten): Garderobe an der Südwand, Spiegel an der Westwand, Schrank mit Nische an der Nordwand
+  function buildFL(g){
+    var WHITE=0xeceae4,OAK=0xc8955a;
+    function bx(x0,x1,z0,z1,y0,y1,col,o){o=o||{};
+      var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),new THREE.MeshStandardMaterial({color:col,roughness:o.r==null?.7:o.r,metalness:o.m||0,transparent:o.o!=null,opacity:o.o==null?1:o.o}));
+      m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);g.add(m);
+      if(o.l!==false){var e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:o.lc||0x9fd8cf,transparent:true,opacity:.12}));m.add(e);}
+      return m;}
+    // Garderobe: Brett mit Stange, Hakenleiste, Jacken und Tasche
+    bx(4.55,5.5,5.5,5.78,1.86,1.9,WHITE);bx(4.6,5.45,5.62,5.64,1.7,1.72,0x8a8f92,{m:.6,l:false});
+    bx(4.6,5.45,5.76,5.78,1.35,1.45,WHITE);
+    
+    // Spiegel mit schwarzem Rahmen an der Westwand
+    bx(3.42,3.45,4.3,4.95,.2,1.85,0x1a1c1d,{r:.3,lc:0x333333});bx(3.45,3.46,4.33,4.92,.23,1.82,0xa9c4cc,{m:.8,r:.1,l:false});
+    // Schrank an der Nordwand: unten Schrank mit Eichenplatte, Nische mit Bild, oben Hängeschrank
+    bx(4.45,5.05,4.2,4.6,0,.9,WHITE);bx(4.45,5.05,4.2,4.62,.9,.93,OAK,{lc:0xd9bb86});
+    bx(4.45,5.05,4.2,4.6,1.6,2.3,WHITE);
+    bx(4.88,5.0,4.32,4.44,.93,1.0,0xf5f5f5,{lc:0x5eead4});                            // Temperatursensor
+    // Bilder an der Nordwand Richtung Wohnungstür, Saugroboter am Spiegel
+    var rb=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.09,28),new THREE.MeshStandardMaterial({color:0x1b2425}));rb.position.set(3.75,.045,4.45);g.add(rb);
+    // Deckenleuchte mit drei Spots
+    var sm=new THREE.MeshBasicMaterial({color:0x2a2a2a});
+    [[-.18,0],[0,0],[.18,0]].forEach(function(o){var s=new THREE.Mesh(new THREE.CylinderGeometry(.07,.05,.12,16),sm);s.position.set(5.2+o[0],2.35,5.1+o[1]);g.add(s);});
+    return {deck:sm};
+  }
+  // Badezimmer nach Fotos und Plan; u ab Ostwand (Waschmaschinen-/Waschbeckenseite), v ab Fensterwand (Süden) bis Türwand
+  function buildBD(g){
+    var WHITE=0xf2f2ee,OAK=0xb98a52,BLACK=0x1b1d1f;
+    function bx(u0,u1,v0,v1,y0,y1,col,o){o=o||{};
+      var m=new THREE.Mesh(new THREE.BoxGeometry(u1-u0,y1-y0,v1-v0),new THREE.MeshStandardMaterial({color:col,roughness:o.r==null?.6:o.r,metalness:o.m||0,transparent:o.o!=null,opacity:o.o==null?1:o.o}));
+      m.position.set((u0+u1)/2,(y0+y1)/2,(v0+v1)/2);g.add(m);
+      if(o.l!==false){var e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:o.lc||0x9fd8cf,transparent:true,opacity:.12}));m.add(e);}
+      return m;}
+    // Fenster mit Plissee, Fensterbank mit Laternen
+    bx(.75,1.4,0,.05,1.0,2.0,0x9be7ff,{o:.15,lc:0x9be7ff});bx(.7,1.45,0,.18,.95,1.0,WHITE);
+    // WC an der Fensterwand, davor die Dusche
+    bx(.1,.5,0,.18,.6,1.0,WHITE);bx(.15,.45,.12,.62,.32,.42,WHITE,{r:.3});bx(.17,.43,.15,.6,.42,.45,0xd9dcda,{r:.4});
+    bx(0,.95,.75,1.7,0,.15,WHITE,{r:.3});                                          // Duschwanne
+    bx(.95,.97,.75,1.7,.15,2.05,0xcfe8ef,{o:.18,lc:0xd0d0d0});bx(0,.95,1.69,1.71,.15,2.05,0xcfe8ef,{o:.18,lc:0xd0d0d0});
+    var head=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.02,20),new THREE.MeshStandardMaterial({color:BLACK}));head.position.set(.25,2.0,1.2);g.add(head);
+    // Waschbecken mit Holzschrank, Spiegel und Glasablage
+    bx(0,.45,1.8,2.3,0,.6,OAK,{r:.7,lc:0xd9bb86});
+    bx(0,.48,1.82,2.28,.6,.78,WHITE,{r:.25});bx(.02,.12,2.0,2.06,.78,.98,BLACK);
+    bx(0,.02,1.85,2.25,1.15,1.65,0xa9c4cc,{m:.8,r:.1});bx(0,.12,1.85,2.25,1.08,1.09,0xcfe8ef,{o:.5});
+    // Waschmaschine unten, Trockner oben, darüber die Lüftung
+    bx(0,.6,2.35,2.95,0,.85,WHITE,{lc:0xbfbfbf});bx(0,.6,2.35,2.95,.87,1.72,WHITE,{lc:0xbfbfbf});
+    var d1=new THREE.Mesh(new THREE.CircleGeometry(.17,24),new THREE.MeshStandardMaterial({color:0x2a2d30}));d1.rotation.y=Math.PI/2;d1.position.set(.605,.45,2.65);g.add(d1);
+    var d2=d1.clone();d2.position.y=1.32;g.add(d2);
+    bx(0,.04,2.5,2.8,2.05,2.3,0xe6e6e2,{lc:0x5eead4});
+    var fanMat=new THREE.MeshBasicMaterial({color:0x2a2a2a});
+    var fan=new THREE.Mesh(new THREE.CircleGeometry(.1,20),fanMat);fan.rotation.y=Math.PI/2;fan.position.set(.045,2.175,2.65);g.add(fan);
+    // Handtuchheizkörper an der Westwand, Bilder
+    bx(1.72,1.8,.3,.9,.2,1.7,WHITE,{lc:0xbfbfbf});
+    // Sensoren: Temperatur beim WC, Bewegungsmelder über der Tür
+    bx(.55,.65,.0,.04,1.1,1.2,0xf5f5f5,{lc:0x5eead4});
+    bx(1.6,1.72,2.95,3.0,2.3,2.4,0xf5f5f5,{lc:0x5eead4});
+    var deck=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.04,24),new THREE.MeshBasicMaterial({color:0x2a2a2a}));deck.position.set(.9,2.45,1.55);g.add(deck);
+    return {deck:deck.material,fan:fanMat};
+  }
+  // Schlafzimmer nach Fotos (Weltkoordinaten): Bett mit Kopfteil an der Ostwand, Fenster Süd, Kommode mit TV an der Westwand, PAX an der Nordwand
+  function buildSZ(g){
+    var WHITE=0xf0f0ec,OAK=0xc39a62,DARK=0x1b1d1f;
+    function bx(x0,x1,z0,z1,y0,y1,col,o){o=o||{};
+      var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),new THREE.MeshStandardMaterial({color:col,roughness:o.r==null?.7:o.r,metalness:o.m||0,transparent:o.o!=null,opacity:o.o==null?1:o.o}));
+      m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);g.add(m);
+      if(o.l!==false){var e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:o.lc||0x9fd8cf,transparent:true,opacity:.12}));m.add(e);}
+      return m;}
+    function glowBar(x0,x1,z0,z1,y){var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,.02,z1-z0),new THREE.MeshBasicMaterial({color:0x2a2a2a}));m.position.set((x0+x1)/2,y,(z0+z1)/2);g.add(m);return m.material;}
+    // Bett 180 x 200 mit Kopfteil (Streben) und Fußteil, Schubladen
+    bx(1.25,3.35,6.2,8.1,.12,.42,WHITE);bx(1.3,3.3,6.25,8.05,.42,.6,0xdfe3ea,{r:.95});
+    bx(3.3,3.38,6.2,8.1,.12,1.12,WHITE);
+    bx(1.22,1.28,6.2,8.1,.12,.72,WHITE);
+    bx(1.6,2.3,6.19,6.2,.15,.38,0xf4f4f0,{lc:0xbfbfbf});bx(2.4,3.1,6.19,6.2,.15,.38,0xf4f4f0,{lc:0xbfbfbf});
+    bx(2.6,3.25,6.5,7.8,.6,.72,0xb8c7b4,{r:.95});bx(1.5,2.6,6.6,7.7,.6,.68,0xb8c7b4,{r:.95});   // Bettdecke
+    var led=glowBar(3.37,3.39,6.2,8.1,1.13);                                                   // LED-Streifen hinter dem Kopfteil
+    // Nachttische mit Lampen
+    bx(2.95,3.35,5.76,6.16,0,.6,WHITE);bx(2.95,3.35,5.76,6.16,.6,.63,OAK);
+    bx(2.95,3.35,8.14,8.54,0,.6,WHITE);bx(2.95,3.35,8.14,8.54,.6,.63,OAK);
+    var nl1=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,.18,16),new THREE.MeshBasicMaterial({color:0x2a2a2a}));nl1.position.set(3.15,.72,5.96);g.add(nl1);
+    var nl2=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,.18,16),new THREE.MeshBasicMaterial({color:0x2a2a2a}));nl2.position.set(3.15,.72,8.34);g.add(nl2);
+    // Fenster Süd mit Plissee, Vorhängen, Heizung; Katzentreppe daneben
+    bx(1.4,2.6,8.85,8.9,.95,2.1,0x9be7ff,{o:.15,lc:0x9be7ff});
+    bx(1.45,2.55,8.78,8.86,.15,.75,WHITE,{r:.5});
+    // Schreibtisch in der Südwestecke mit Stuhl, darüber Spiegel und Regale
+    bx(.05,.5,8.1,8.85,0,.73,WHITE);bx(.05,.55,8.1,8.85,.73,.75,WHITE);
+    bx(.6,1.0,8.25,8.65,.42,.48,0xe6ddd0);bx(.95,1.0,8.25,8.65,.48,.9,0xe6ddd0);
+    var desk=glowBar(.03,.06,8.25,8.7,1.62);                                                   // Leuchte über dem Spiegel
+    var mir=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.02,24),new THREE.MeshStandardMaterial({color:0xa9c4cc,metalness:.8,roughness:.1}));mir.rotation.z=Math.PI/2;mir.position.set(.03,1.32,8.47);g.add(mir);
+    bx(0,.18,8.05,8.4,1.05,1.07,0xc8955a);bx(0,.18,8.05,8.4,1.3,1.32,0xc8955a);
+    // Kommode (Eiche, 6 Schubladen) mit Fernseher an der Westwand, Wäschekorb
+    bx(0,.48,6.5,8.05,0,.8,OAK,{lc:0xd9bb86});
+    for(var r=0;r<3;r++){bx(.48,.49,6.52,7.27,.04+r*.25,.27+r*.25,0xcda46c,{lc:0x9a7a4a});bx(.48,.49,7.29,8.03,.04+r*.25,.27+r*.25,0xcda46c,{lc:0x9a7a4a});}
+    bx(0,.06,6.6,7.9,1.25,1.95,DARK,{r:.3});                                                   // Fernseher
+    // PAX-Kleiderschrank (5 Türen) an der Wand zum Wohnzimmer, Kisten oben drauf
+    bx(.3,2.8,5.07,5.65,0,2.01,WHITE);for(var d=1;d<5;d++)bx(.3+d*.5,.305+d*.5,5.65,5.66,.02,1.99,0xd0d0cc,{l:false});
+    var deck=new THREE.Mesh(new THREE.CylinderGeometry(.25,.12,.18,24),new THREE.MeshBasicMaterial({color:0x2a2a2a}));deck.position.set(1.8,2.25,7.0);g.add(deck);
+    return {deck:deck.material,nl1:nl1.material,nl2:nl2.material,led:led,desk:desk};
+  }
+  // Wohnzimmer nach Fotos (Weltkoordinaten): KIVIK-Ecksofa in der Nordwestecke, Bank an der Balkontür, BESTÅ-Fernsehwand an der Südwand, Sessel
+  function buildWZ(g){
+    var WHITE=0xf0f0ec,OAK=0xc39a62,GREY=0x9a9d9c,DARK=0x111214;
+    function bx(x0,x1,z0,z1,y0,y1,col,o){o=o||{};
+      var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),new THREE.MeshStandardMaterial({color:col,roughness:o.r==null?.8:o.r,metalness:o.m||0,transparent:o.o!=null,opacity:o.o==null?1:o.o}));
+      m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);g.add(m);
+      if(o.l!==false){var e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:o.lc||0x9fd8cf,transparent:true,opacity:.12}));m.add(e);}
+      return m;}
+    function cyl(x,z,r,y0,y1,col){var m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,y1-y0,20),new THREE.MeshStandardMaterial({color:col,roughness:.7}));m.position.set(x,(y0+y1)/2,z);g.add(m);return m;}
+    // Teppich, Ecksofa (abgerückt von der Wand: Heizung, Router und Raspberry Pi dahinter)
+    bx(1.15,2.85,1.5,3.3,0,.012,0xcdbfa6,{r:1,l:false,o:.55});
+    bx(.1,2.4,.3,1.25,0,.45,GREY);bx(.1,2.4,.3,.55,.45,.85,GREY);bx(2.15,2.4,.55,1.25,.45,.65,GREY);
+    bx(.1,1.1,1.25,2.85,0,.45,GREY);bx(.1,.35,.55,2.25,.45,.85,GREY);
+    // Router und Raspberry Pi an der Wand hinter dem Sofa
+    bx(.6,.85,0,.05,1.0,1.18,0x1c1f22,{lc:0x5eead4});bx(.9,1.0,0,.04,1.02,1.1,0x2e7d4f,{lc:0x5eead4});
+    // Couchtisch mittig im L des Sofas, Bank neben dem Sofa
+    var top=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,.04,32),new THREE.MeshStandardMaterial({color:OAK,roughness:.6}));top.scale.set(1.1,1,.7);top.position.set(1.75,.4,2.35);g.add(top);
+    [[1.5,2.25],[2.0,2.25],[1.75,2.55]].forEach(function(p){cyl(p[0],p[1],.08,0,.38,OAK);});
+    bx(2.45,2.8,.35,1.25,.42,.46,0xe3d2b4);[[2.47,.37],[2.78,.37],[2.47,1.23],[2.78,1.23]].forEach(function(p){cyl(p[0],p[1],.02,0,.42,OAK);});
+    // Heizung an der Nordwand, flach hinter der Sofalehne
+    bx(1.0,1.9,.05,.13,.15,.75,WHITE,{r:.5});
+    // Spiegel mit Goldrahmen an der Westwand
+    bx(0,.04,1.3,2.5,1.25,1.85,0xb38f3a,{m:.5,r:.4,lc:0xd9bb86});bx(.04,.045,1.35,2.45,1.3,1.8,0xa9c4cc,{m:.8,r:.1,l:false});
+    // Stehlampe in der Ecke hinter dem Sofa
+    cyl(.2,.2,.015,0,1.5,0xe9e4d6);var flMat=new THREE.MeshBasicMaterial({color:0x2a2a2a});var fsh=new THREE.Mesh(new THREE.CylinderGeometry(.06,.11,.15,16),flMat);fsh.position.set(.2,1.45,.2);g.add(fsh);
+    // Pendelleuchte über dem Couchtisch
+    var pMat=new THREE.MeshBasicMaterial({color:0x2a2a2a});var pend=new THREE.Mesh(new THREE.CylinderGeometry(.1,.2,.18,24),pMat);pend.position.set(1.75,1.95,2.2);g.add(pend);
+    bx(1.745,1.755,2.195,2.205,2.04,2.5,0xdddddd,{l:false});
+    // BESTÅ-Fernsehwand an der Südwand, ganz an die Spiegelwand gerückt: Hochschrank in der Ecke, Bank 1,80 m
+    bx(0,.6,4.62,5.04,.02,1.92,WHITE);
+    bx(.6,2.4,4.62,5.04,.02,.62,WHITE);bx(.6,2.42,4.6,5.04,.62,.65,OAK,{lc:0xd9bb86});
+    // Fernseher mit Ambilight
+    var amb=new THREE.Mesh(new THREE.PlaneGeometry(2.0,1.15),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));amb.position.set(1.5,1.2,5.03);amb.rotation.y=Math.PI;g.add(amb);
+    bx(.65,2.35,4.92,4.97,.72,1.68,DARK,{r:.3,lc:0x333333});
+    var scr=new THREE.Mesh(new THREE.PlaneGeometry(1.62,.9),new THREE.MeshBasicMaterial({color:0x0b0b0c}));scr.position.set(1.5,1.2,4.915);scr.rotation.y=Math.PI;g.add(scr);
+    bx(1.15,1.85,4.75,4.85,.65,.72,DARK);                                                       // Soundbar
+    // Sessel mit Hocker in der Nische rechts der Fernsehwand
+    bx(2.8,3.35,4.35,4.95,.1,.45,GREY);bx(2.8,3.35,4.85,5.0,.45,1.05,GREY);bx(2.8,2.88,4.4,4.95,.45,.65,GREY);bx(3.27,3.35,4.4,4.95,.45,.65,GREY);
+    bx(2.75,3.2,3.75,4.2,.05,.42,GREY);
+    // Bewegungsmelder über dem hohen BESTÅ-Element
+    bx(.25,.35,5.0,5.04,2.15,2.25,0xf5f5f5,{lc:0x5eead4});
+    // ---- Esszimmer: Esstisch mit Tischdecke, sechs Stühle darunter
+    bx(3.6,5.2,1.35,2.25,.72,.76,0xf2efe8,{r:.95});bx(3.58,5.22,1.33,2.27,.6,.72,0xf2efe8,{r:.95,o:.85,l:false});
+    [[3.68,1.43],[5.12,1.43],[3.68,2.17],[5.12,2.17]].forEach(function(p){cyl(p[0],p[1],.03,0,.72,OAK);});
+    function chair(x,z,rot){var c=new THREE.Group();g.add(c);c.position.set(x,0,z);c.rotation.y=rot;
+      var sm=new THREE.MeshStandardMaterial({color:0xe9e6df,roughness:.6});
+      var seat=new THREE.Mesh(new THREE.BoxGeometry(.42,.05,.42),sm);seat.position.y=.45;c.add(seat);
+      var back=new THREE.Mesh(new THREE.BoxGeometry(.42,.38,.04),sm);back.position.set(0,.68,.2);c.add(back);
+      [[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]].forEach(function(l){var m=new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,.45,8),new THREE.MeshStandardMaterial({color:OAK}));m.position.set(l[0],.225,l[1]);c.add(m);});}
+    // Stühle unter dem Tisch (Rückenlehne nach außen)
+    chair(3.95,1.42,Math.PI);chair(4.85,1.42,Math.PI);chair(3.95,2.18,0);chair(4.85,2.18,0);
+    chair(3.75,1.8,-Math.PI/2);chair(5.05,1.8,Math.PI/2);
+    // Bücherregal in der Ecke neben der Balkontür
+    bx(4.6,5.45,.06,.41,0,2.0,WHITE);[.4,.8,1.2,1.6].forEach(function(y){bx(4.62,5.43,.06,.4,y,y+.02,0xe0ddd5,{l:false});});
+    // Bilder an der Ostwand
+    bx(5.52,5.55,1.1,1.6,1.4,1.9,0x2b2b2b);bx(5.52,5.55,1.9,2.5,1.3,1.8,0x8a6d4b);
+    // Weißer Schrank an der Wand zum Flur: so breit wie das Regal, halb so hoch
+    bx(4.6,5.45,3.79,4.14,0,1.0,WHITE);
+    // Pendelleuchte über dem Esstisch
+    var eMat=new THREE.MeshBasicMaterial({color:0x2a2a2a});var ep=new THREE.Mesh(new THREE.SphereGeometry(.2,24,12,0,Math.PI*2,0,Math.PI/2),eMat);ep.position.set(4.4,1.6,1.8);g.add(ep);
+    bx(4.395,4.405,1.795,1.805,1.8,2.5,0xdddddd,{l:false});
+    return {deck:pMat,floor:flMat,tv:scr.material,amb:amb.material,ez:eMat};
+  }
+  function buildAZ(scene){
+    var W=3.0,D=4.2,H=2.5,MINT=0x5eead4;
+  function edges(mesh,color,op){
+    var e=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:color||MINT,transparent:true,opacity:op==null?.22:op*.3}));
+    mesh.add(e);return mesh;
+  }
+  // box von x0..x1, z0..z1, y0..y1
+  function box(x0,x1,z0,z1,y0,y1,fill,line,fo){
+    var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),
+      new THREE.MeshStandardMaterial({color:fill||0x1d3532,transparent:true,opacity:fo==null?.88:fo,roughness:.8}));
+    m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
+    edges(m,line);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
+  }
+
+  function tube(x0,y0,z0,x1,y1,z1,r,color){
+    var a=new THREE.Vector3(x0,y0,z0),b=new THREE.Vector3(x1,y1,z1),d=b.clone().sub(a);
+    var m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),10),new THREE.MeshStandardMaterial({color:color||0x1b1f20,roughness:.6,metalness:.3}));
+    m.position.copy(a).add(b).multiplyScalar(.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
+    m.castShadow=true;scene.add(m);return m;
+  }
+  function buildPower(){
+    var T=0x3a4446,r=.022;
+    box(0,.87,.5,1.55,0,.012,0xd8d1b8,0xd8d1b8,.5);
+    tube(.05,.03,.52,.85,.03,.52,r,T);tube(.05,.03,1.53,.85,.03,1.53,r,T);
+    tube(.08,.03,.52,.08,.03,1.53,r,T);tube(.8,.03,.52,.8,.03,1.53,r,T);
+    tube(.1,.03,.75,.1,1.95,.75,r,T);tube(.1,.03,1.32,.1,1.95,1.32,r,T);
+    tube(.1,1.95,.52,.1,1.95,1.55,r,T);tube(.1,1.95,.52,.32,1.88,.52,r,T);tube(.1,1.95,1.55,.32,1.88,1.55,r,T);
+    tube(.1,1.0,.65,.6,1.0,.65,r,T);tube(.1,1.0,1.42,.6,1.0,1.42,r,T);
+    tube(.6,1.0,.65,.6,1.12,.65,r,T);tube(.6,1.0,1.42,.6,1.12,1.42,r,T);
+    box(.1,.16,.8,1.27,1.1,1.6,0x111415,MINT,.9);
+    box(.12,.4,.7,1.37,.95,.99,0x111415,MINT,.9);
+  }
+  function buildKommode(){
+    box(2.52,3.0,.05,1.25,0,1.23,0x24413d,MINT,.92);
+    for(var c=0;c<2;c++){for(var k=0;k<6;k++){
+      var z0=.07+c*.59,y0=.02+k*.2;
+      box(2.505,2.52,z0,z0+.57,y0,y0+.19,0x2d5551,MINT,.95);}}
+    box(2.58,2.97,.08,.47,1.23,1.69,0x15191a,MINT,.95);
+    box(2.575,2.585,.12,.43,1.28,1.6,0x6ec7ff,0x6ec7ff,.25);
+    var sp=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.04,24),new THREE.MeshStandardMaterial({color:0x8a6f47}));
+    sp.rotation.z=Math.PI/2;sp.position.set(2.97,1.9,.27);scene.add(sp);
+    box(2.62,2.9,.52,.8,1.23,1.31,0x2b3033,MINT,.95);                                   // Sovol Sockel
+    box(2.612,2.622,.58,.74,1.25,1.29,0x0a0d0e,0x6ec7ff,.95);                           // Display vorn
+    var dm=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.24,28,1,true),new THREE.MeshStandardMaterial({color:0x7a6040,transparent:true,opacity:.35,side:THREE.DoubleSide}));
+    dm.rotation.z=Math.PI/2;dm.position.set(2.76,1.46,.66);scene.add(dm);                // Haube
+    var spl=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.07,28),new THREE.MeshStandardMaterial({color:0x8a6f47,roughness:.8}));
+    spl.rotation.z=Math.PI/2;spl.position.set(2.76,1.46,.66);spl.castShadow=true;scene.add(spl);   // Spule
+    tube(2.74,1.61,.6,2.72,1.7,.55,.006,0x15191a);tube(2.78,1.61,.7,2.8,1.7,.75,.006,0x15191a);
+
+
+    box(2.62,2.92,.84,1.22,1.23,1.4,0x101314,MINT,.95);
+
+  }
+  function buildCrateRack(){
+    var T=0x3a4446,r=.012,x0=.25,x1=.65,z0=0,z1=.3;
+    [[x0,z0],[x1,z0],[x0,z1],[x1,z1]].forEach(function(q){tube(q[0],0,q[1],q[0],1.32,q[1],r,T)});
+    [.04,.44,.84,1.24].forEach(function(y){
+      tube(x0,y,z0,x1,y,z0,r,T);tube(x0,y,z1,x1,y,z1,r,T);tube(x0,y,z0,x0,y,z1,r,T);tube(x1,y,z0,x1,y,z1,r,T);});
+    [[.045,0x2a5bd7,.95],[.445,0xd63a3a,.95],[.845,0xcfe8ef,.5]].forEach(function(c){
+      box(x0+.02,x1-.02,z0+.02,z1-.02,c[0],c[0]+.3,c[1],0xffffff,c[2]);});
+  }
+  function buildKallax(){
+    var X0=2.23,X1=3.0,Z0=3.81,Z1=4.2,H=1.47,t=.02,W=0xe8ece9,E=0x9fd8cf;
+    box(X0,X0+t,Z0,Z1,0,H,W,E,.9);box(X1-t,X1,Z0,Z1,0,H,W,E,.9);
+    box((X0+X1)/2-t/2,(X0+X1)/2+t/2,Z0,Z1,0,H,W,E,.9);
+    for(var k=0;k<5;k++){var y=k*(H-t)/4;box(X0,X1,Z0,Z1,y,y+t,W,E,.9);}
+    box(X0,X1,Z1-.01,Z1,0,H,0xcfd6d3,E,.5);
+    var cw=(X1-X0-3*t)/2, ch=(H-5*t)/4;
+    function cell(c,r){var x=X0+t+c*(cw+t),y=t+r*(ch+t);return {x:x,y:y};}
+    // gefüllt: Stoffboxen, Ordner, Papierstapel
+    var fill=[[0,3,'box',0xb8a98a],[1,3,'door',0xe8ece9],[0,2,'bind'],[1,2,'bind'],[0,1,'box',0xb8a98a],[1,1,'box',0xb8a98a],[0,0,'box',0xb8a98a],[1,0,'paper']];
+    fill.forEach(function(f){
+      var p=cell(f[0],f[1]);
+      if(f[2]==='box')box(p.x+.02,p.x+cw-.02,Z0+.02,Z1-.03,p.y+.01,p.y+ch-.02,f[3],0xd9c9a0,.95);
+      else if(f[2]==='door')box(p.x+.01,p.x+cw-.01,Z0,Z0+.02,p.y,p.y+ch,f[3],E,.95);
+      else if(f[2]==='bind'){for(var i=0;i<5;i++){var cols=[0x16191a,0x1f4f8a,0x16191a,0xa33a3a,0x16191a];box(p.x+.03+i*.05,p.x+.07+i*.05,Z0+.04,Z1-.04,p.y+.01,p.y+ch-.04,cols[i],0x888888,.95);}}
+      else box(p.x+.03,p.x+cw-.03,Z0+.05,Z1-.05,p.y+.01,p.y+.11,0xf2f2f2,0xffffff,.9);
+    });
+    box(X0,X1,Z0,Z1,H,H+.01,W,E,.9);
+  }
+  function buildChair(){
+    var cx=2.05,cz=3.3,G=0x2b3234;
+    var seat=new THREE.Mesh(new THREE.BoxGeometry(.46,.07,.46),new THREE.MeshStandardMaterial({color:0xc9d3d1}));
+    seat.position.set(cx,.5,cz);edges(seat,MINT,.8);scene.add(seat);
+    box(cx-.25,cx-.2,cz-.22,cz+.22,.52,.98,0xc9d3d1,MINT,.9);                   // Rückenlehne zum Schreibtisch hin abgewandt
+    tube(cx,.1,cz,cx,.46,cz,.02,G);
+    for(var i=0;i<5;i++){var a=i*Math.PI*2/5;tube(cx,.08,cz,cx+Math.cos(a)*.27,.06,cz+Math.sin(a)*.27,.015,G);}
+  }
+  function buildPiano(){
+    var K=0x241d1a,E=0xb59a82;
+    box(2.52,3.0,1.3,1.4,0,.85,K,E,.95);box(2.52,3.0,2.56,2.66,0,.85,K,E,.95);
+    box(2.5,3.0,1.3,2.66,.7,.85,K,E,.95);
+    box(2.45,2.85,1.34,2.62,.66,.72,0x15110f,E,.95);
+    box(2.9,3.0,1.4,2.56,0,.7,0x15110f,E,.8);
+    tube(2.55,.06,1.5,2.55,.06,2.46,.015,0xb59a82);
+    box(2.72,2.78,1.6,2.35,.85,1.02,0x15110f,E,.95);
+    box(2.1,2.55,1.98,2.55,.46,.52,0x1b1b1d,0x8b5a3c,.95);
+    [[2.12,2.0],[2.53,2.0],[2.12,2.53],[2.53,2.53]].forEach(function(q){tube(q[0],0,q[1],q[0],.46,q[1],.015,0x5a3a26)});
+    var mat=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.01,24,1,false,0,Math.PI),new THREE.MeshStandardMaterial({color:0x25282a}));
+    mat.rotation.y=Math.PI;mat.position.set(2.55,.006,1.65);scene.add(mat);
+  }
+  // Plissee am Fenster, zur Hälfte offen (obere Hälfte geschlossen)
+  box(.57,1.84,4.1,4.14,1.45,2.0,0xe9ece8,0xffffff,.92);
+  for(var k=0;k<11;k++){box(.57,1.84,4.08,4.1,1.47+k*.05,1.485+k*.05,0xd2d8d4,0xd2d8d4,.9);}
+  box(.57,1.84,4.07,4.13,1.99,2.02,0xffffff,0xffffff,.95);
+  // Möbel (Maße in m, Positionen nach Grundriss v8)
+  var F=0x1d3532, A=0xfbbf24;
+  box(0,.2,0,.2,0,H,0x2d5551,MINT,.5);                       // Schacht
+  buildCrateRack();
+  buildPower();
+  box(0,.86,1.96,4.05,0,.38,0x2a3a3a,MINT);                    // Bett Unterbau (Hemnes 86 x 209)
+  box(.04,.84,2.0,4.01,.38,.52,0xe9e6dd,0xd8d4c8,.98);                 // Matratze
+  box(0,.05,1.96,4.05,.38,.83,F);                              // Rückwand
+  box(0,.86,1.96,2.01,.38,.83,F);                              // Kopfteil
+  box(0,.86,4.0,4.05,.38,.83,F);                               // Fußteil
+  box(0,.2,2.05,3.95,1.4,1.45,0x6b5a3a,0xc9a86a);              // Wandregal 1,9 m unten
+  box(0,.2,2.05,3.95,1.85,1.9,0x6b5a3a,0xc9a86a);              // Wandregal 1,9 m oben
+  box(0,.57,4.0,4.2,0,.5,0x3a3320,A);                         // Pfand
+  box(.6,1.8,4.08,4.2,.25,.85,0x2a3a3a,0xffffff,.8);          // Heizung
+  buildKommode();
+
+  buildPiano();
+
+
+
+  box(2.55,3.0,1.4,1.9,0,.4,0x6f6a5f,0xb9b19a,.9);box(2.6,2.95,1.45,1.85,.4,.43,0x1e2425,0x9fb0ae,.9);  // Katzenklo unterm Klavier
+  box(2.535,2.55,1.52,1.78,.08,.3,0x0b0f10,0x9fb0ae,.95);                                                 // Klappe nach vorn
+  var kt=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.45,20),new THREE.MeshStandardMaterial({color:0x8a7a5a}));
+  kt.position.set(2.0,.225,4.0);scene.add(kt);edges(kt,0xc9a86a,.8);                                      // Kratztonne
+  box(0,.1,3.72,3.84,1.45,1.53,0xffffff,MINT,.9);                                                       // Luftsensor auf dem Regal (Fensterseite)
+  box(2.42,3.0,2.7,3.1,0,.69,F);                              // Alex
+  box(2.4,3.0,2.7,3.9,.69,.73,0x8a6f47,0xd9bb86);             // Platte (73 cm)
+  buildKallax();buildChair();
+  box(2.7,3.0,2.75,3.85,1.55,1.6,0x6b5a3a,0xc9a86a);           // Regal über Schreibtisch unten
+  box(2.7,3.0,2.75,3.85,1.95,2.0,0x6b5a3a,0xc9a86a);           // Regal über Schreibtisch oben
+  box(2.75,2.82,3.1,3.55,.73,1.1,0x0a0f10,MINT);              // Monitor
+  box(1.0,1.18,0,.18,.0,1.1,0x2a2a2f,0x9fb0ae);               // Staubsauger
+  var robi=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.09,32),new THREE.MeshStandardMaterial({color:0x1b2425}));
+  robi.position.set(.18,.045,1.775);edges(robi,0x9fb0ae);scene.add(robi);
+  var pl=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.26,24),new THREE.MeshBasicMaterial({color:0xffd9a8,transparent:true,opacity:.9}));
+  pl.position.set(2.8,.85+.34,1.52);scene.add(pl);                      // Klavierlampe (Schirm)
+  box(2.76,2.84,1.48,1.56,.85,1.05,0x3a3f42,0x9fb0ae);
+  var lamp=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.05,32),new THREE.MeshBasicMaterial({color:0xfff2c2}));
+  lamp.position.set(1.5,H-.03,2.1);scene.add(lamp);
+  function plain(x0,x1,z0,z1,y0,y1,color,opts){
+    opts=opts||{};
+    var m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),new THREE.MeshStandardMaterial({color:color,roughness:opts.r==null?.85:opts.r,metalness:opts.m||0,transparent:opts.o!=null,opacity:opts.o==null?1:opts.o,emissive:opts.e||0x000000}));
+    m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);m.castShadow=opts.s!==false;m.receiveShadow=true;scene.add(m);return m;
+  }
+  function ball(x,y,z,r,color){var m=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),new THREE.MeshStandardMaterial({color:color,roughness:.5,metalness:.3}));m.position.set(x,y,z);m.castShadow=true;scene.add(m);return m;}
+  // Klavier: Tasten, Notenheft, Spiegel darüber
+  (function(){
+    var z0=1.38,z1=2.58,n=28,wk=(z1-z0)/n;
+    plain(2.46,2.68,z0,z1,.725,.735,0xf0ece2,{r:.4});
+    for(var i=0;i<n;i++){plain(2.462,2.462+.001,z0+i*wk+.002,z0+(i+1)*wk-.002,.725,.735,0xcfcabd,{s:false});}
+    var pat=[1,1,0,1,1,1,0];
+    for(var i=0;i<n-1;i++){if(pat[i%7])plain(2.52,2.66,z0+(i+1)*wk-.007,z0+(i+1)*wk+.007,.735,.75,0x15110f,{r:.5});}
+    plain(2.97,2.99,1.5,2.62,1.2,1.6,0x6f6a8a,{r:.1,m:.6});                               // Spiegel
+    box(2.965,3.0,1.46,2.66,1.18,1.2,0x7a5a3a,0xb59a82,.95);box(2.965,3.0,1.46,2.66,1.6,1.62,0x7a5a3a,0xb59a82,.95);
+    box(2.965,3.0,1.46,1.48,1.18,1.62,0x7a5a3a,0xb59a82,.95);box(2.965,3.0,2.64,2.66,1.18,1.62,0x7a5a3a,0xb59a82,.95);
+  })();
+  // Bett: Schubladenfronten mit Knäufen, Kissen, Decke
+  (function(){
+    var z0=1.96,z1=4.05;
+    for(var i=0;i<3;i++){var a=z0+.04+i*(z1-z0-.08)/3,b=a+(z1-z0-.08)/3-.02;
+      plain(.86,.875,a,b,.04,.34,0xe8e4da,{r:.7});ball(.885,.2,(a+b)/2,.018,0x4a4a4a);}
+  })();
+  // Schreibtisch: Alex-Schubladen mit Griffen, Bildschirm, Tastatur, Maus, Unterlage, Tablet
+  (function(){
+    for(var i=0;i<5;i++){var y=.03+i*.13;plain(2.40,2.41,2.72,3.08,y,y+.12,0xeeeeea,{r:.7});plain(2.395,2.4,2.84,2.96,y+.095,y+.105,0x2a2a2a,{r:.5});}
+    plain(2.72,2.99,3.0,3.55,.73,.735,0x7f9a8c,{r:.9,s:false});                              // Unterlage
+    plain(2.93,2.97,3.2,3.6,.76,1.08,0x0d1012,{e:0x0a2a3a});                                // Monitor mit Schein
+    plain(2.94,2.98,3.65,3.85,.76,.9,0x15191a,{e:0x14233a});                                // Tablet
+  })();
+  // Stuhl: Armlehnen
+  plain(1.82,2.28,3.06,3.1,.55,.7,0xc9d3d1,{r:.8});plain(1.82,2.28,3.5,3.54,.55,.7,0xc9d3d1,{r:.8});
+  // Heizung: Rippen, Fensterbank, Fensterrahmen, Laptop
+  (function(){
+    plain(.6,1.8,4.08,4.2,.84,.87,0xe3e3df,{r:.6});
+    plain(.45,1.95,4.1,4.28,.87,.91,0xcfc8b4,{r:.6});                                        // Fensterbank
+    plain(.57,.6,4.14,4.2,.91,2.0,0xf4f4f0,{r:.5});plain(1.81,1.84,4.14,4.2,.91,2.0,0xf4f4f0,{r:.5});
+    plain(.57,1.84,4.14,4.2,.91,.94,0xf4f4f0,{r:.5});plain(.57,1.84,4.14,4.2,1.98,2.0,0xf4f4f0,{r:.5});
+
+
+    plain(1.74,1.78,4.15,4.2,1.1,1.27,0xe9e9e4,{r:.3,m:.5});                                  // Fenstergriff
+  })();
+  // Kommode: Griffe als Nut, Spulen, Controller; Staubsaugerwand
+  (function(){
+    for(var c=0;c<2;c++)for(var k=0;k<6;k++){var z0=.07+c*.59,y0=.02+k*.2;plain(2.498,2.505,z0+.18,z0+.39,y0+.15,y0+.165,0x0f1a19,{r:.5,s:false});}
+  })();
+  // Boden: Teppich unter Schreibtisch-Stuhl, Holzdielen
+  (function(){
+  })();
+  // Hue Iris auf dem Kallax: dunkler Körper, Leuchtfläche zur Wand
+  var irisBody=new THREE.Mesh(new THREE.CylinderGeometry(.1,.11,.14,24),new THREE.MeshStandardMaterial({color:0x1b1d1e,roughness:.5}));
+  irisBody.position.set(2.65,1.55,3.98);irisBody.castShadow=false;scene.add(irisBody);edges(irisBody,0x9fb0ae,.6);
+  var irisDisc=new THREE.Mesh(new THREE.CircleGeometry(.09,24),new THREE.MeshBasicMaterial({color:0xff4fa3,side:THREE.DoubleSide}));
+  irisDisc.rotation.y=Math.PI/2;irisDisc.position.set(2.72,1.57,3.98);scene.add(irisDisc);
+  // Schreibtischlampe: Leuchtleiste unter dem unteren Regal
+  box(2.76,2.84,3.0,3.6,1.5,1.545,0x15191a,0x9fb0ae,.95);
+  var barGlow=new THREE.Mesh(new THREE.BoxGeometry(.06,.01,.56),new THREE.MeshBasicMaterial({color:0x1a1a1a}));
+  barGlow.position.set(2.8,1.495,3.3);scene.add(barGlow);
+    return {deck:lamp.material,piano:pl.material,iris:irisDisc.material,desk:barGlow.material};
+  }
+  var azMats=null,azGrp=new THREE.Group();
+  azGrp.position.set(AZX+3,0,AZZ+4.2);azGrp.rotation.y=Math.PI;azGrp.visible=false;scene.add(azGrp);
+  azMats=buildAZ(azGrp);
+  var KX=7.35,KZ=8.9;function KUP(u,v){return [KX-u,KZ-v];}
+  var kuGrp=new THREE.Group();kuGrp.position.set(KX,0,KZ);kuGrp.rotation.y=Math.PI;scene.add(kuGrp);
+  var kuMats=buildKU(kuGrp);
+  var bdGrp=new THREE.Group();bdGrp.position.set(5.2,0,8.9);bdGrp.rotation.y=Math.PI;scene.add(bdGrp);var bdMats=buildBD(bdGrp);
+  var wzGrp=new THREE.Group();scene.add(wzGrp);var wzMats=buildWZ(wzGrp);
+  var szGrp=new THREE.Group();scene.add(szGrp);var szMats=buildSZ(szGrp);
+  var flGrp=new THREE.Group();scene.add(flGrp);var flMats=buildFL(flGrp);
+  var W=0,Dp=0;ROOMS.forEach(function(r){r.rects.forEach(function(q){W=Math.max(W,q[2]);Dp=Math.max(Dp,q[3]);});});
+  var cx=W/2,cz=Dp/2;
+  var floors=[],LINE=new THREE.LineBasicMaterial({color:0x5eead4,transparent:true,opacity:.7});
+  var DRAWN={};
+  // Türen als Lücken in den Wänden (nach Corins Einzeichnung): [Achse, Lage der Wand, von, bis]
+  var DOORS=[['z',0,2.84,4.5],      // Balkontür (Doppeltür)
+    ['z',4.2,3.55,4.33],            // Flur - Wohn-/Esszimmer
+    ['x',3.4,5.1,5.75],             // Flur - Schlafzimmer
+    ['z',5.8,3.5,4.25],             // Flur - Bad
+    ['z',5.8,5.95,6.9],             // Flur - Küche
+    ['z',4.5,6.55,7.35],            // Flur - Arbeitszimmer
+    ['x',7.4,4.9,5.7]];             // Wohnungstür
+  DOORS.forEach(function(d){var k=d[0]+Math.round(d[1]*20);(DRAWN[k]||(DRAWN[k]=[])).push([d[2],d[3]]);});
+  var wallMat=new THREE.MeshStandardMaterial({color:0x22332f,roughness:.7});
+  ROOMS.forEach(function(r){
+    var bx0=1e9,bz0=1e9,bx1=-1e9,bz1=-1e9;r.floorMats=[];
+    r.rects.forEach(function(q){
+      var w=q[2]-q[0],d=q[3]-q[1];bx0=Math.min(bx0,q[0]);bz0=Math.min(bz0,q[1]);bx1=Math.max(bx1,q[2]);bz1=Math.max(bz1,q[3]);
+      var fm=new THREE.MeshStandardMaterial({color:r.col,roughness:.9,transparent:true,opacity:1});
+      var f=new THREE.Mesh(new THREE.BoxGeometry(w,.08,d),fm);f.position.set(q[0]+w/2,-.04,q[1]+d/2);f.userData.room=r;scene.add(f);floors.push(f);r.floorMats.push(fm);
+      // Wandstücke; Stücke, an denen ein anderer Teil desselben Raums anliegt, entfallen (keine Wand mitten im Raum)
+      function strips(a0,a1,fixed,axis,side){
+        var cuts=[],oth=[];ROOMS.forEach(function(x){if(x===r||(r.grp&&x.grp===r.grp))oth=oth.concat(x.rects)});oth.forEach(function(o){if(o===q)return;
+          if(axis==='x'){ // senkrechte Kante bei x=fixed, Bereich z
+            if(Math.abs((side>0?o[2]:o[0])-fixed)<.01&&o[3]>a0&&o[1]<a1)cuts.push([Math.max(a0,o[1]),Math.min(a1,o[3])]);
+          }else if(Math.abs((side>0?o[3]:o[1])-fixed)<.01&&o[2]>a0&&o[0]<a1)cuts.push([Math.max(a0,o[0]),Math.min(a1,o[2])]);});
+        cuts.sort(function(a,b){return a[0]-b[0]});var out=[],p=a0;
+        cuts.forEach(function(c){if(c[0]>p+.02)out.push([p,c[0]]);p=Math.max(p,c[1]);});if(a1>p+.02)out.push([p,a1]);return out;}
+      function addWall(cx,cz,sx,sz){
+        var b=new THREE.Mesh(new THREE.BoxGeometry(sx,WH,sz),wallMat);b.position.set(cx,WH/2,cz);scene.add(b);
+        var e=new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry),LINE);e.position.copy(b.position);scene.add(e);}
+      // gemeinsame Wände zweier Räume nur einmal zeichnen
+      function dd(ax,fx,list){var k=ax+Math.round(fx*20),d=DRAWN[k]||(DRAWN[k]=[]),out=[];
+        list.forEach(function(s){var segs=[s];d.forEach(function(c){var n=[];segs.forEach(function(t){if(c[1]<=t[0]+.02||c[0]>=t[1]-.02){n.push(t);return;}if(c[0]>t[0]+.02)n.push([t[0],c[0]]);if(c[1]<t[1]-.02)n.push([c[1],t[1]]);});segs=n;});out=out.concat(segs);});
+        out.forEach(function(s){d.push(s)});return out;}
+      strips=(function(f){return function(a0,a1,fx,ax,side){return dd(ax,fx,f(a0,a1,fx,ax,side));};})(strips);
+      strips(q[0],q[2],q[1],'z',1).forEach(function(s){addWall((s[0]+s[1])/2,q[1],s[1]-s[0]+(s[0]<=q[0]+.02?WT:0),WT);});
+      strips(q[0],q[2],q[3],'z',-1).forEach(function(s){addWall((s[0]+s[1])/2,q[3],s[1]-s[0]+(s[0]<=q[0]+.02?WT:0),WT);});
+      strips(q[1],q[3],q[0],'x',1).forEach(function(s){addWall(q[0],(s[0]+s[1])/2,WT,s[1]-s[0]);});
+      strips(q[1],q[3],q[2],'x',-1).forEach(function(s){addWall(q[2],(s[0]+s[1])/2,WT,s[1]-s[0]);});
+    });
+    r.c=new THREE.Vector3((bx0+bx1)/2,0,(bz0+bz1)/2);r.size=Math.max(bx1-bx0,bz1-bz0);
+    r.light=new THREE.PointLight(0xffd9a0,0,7,1.4);r.light.position.set(r.c.x,1.8,r.c.z);scene.add(r.light);
+    r.base=new THREE.Color(r.col).multiplyScalar(.3);r.lit=new THREE.Color(r.col).multiplyScalar(.62);r.k=0;
+  });
+  // Balkon nördlich vom Wohnzimmer (3,36 x 1,6 m), nur Boden und niedrige Brüstung
+  (function(){
+    var x1=5.6,x0=x1-3.36,z0=-1.6,z1=0;
+    var f=new THREE.Mesh(new THREE.BoxGeometry(3.36,.06,1.6),new THREE.MeshStandardMaterial({color:0x6b7a78,roughness:.9}));f.position.set((x0+x1)/2,-.03,(z0+z1)/2);scene.add(f);
+    [[(x0+x1)/2,z0,3.36,.05],[x0,(z0+z1)/2,.05,1.6],[x1,(z0+z1)/2,.05,1.6]].forEach(function(s){
+      var b=new THREE.Mesh(new THREE.BoxGeometry(s[2],.3,s[3]),new THREE.MeshStandardMaterial({color:0x2a3a37,transparent:true,opacity:.7}));b.position.set(s[0],.15,s[1]);scene.add(b);
+      var e=new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry),LINE);e.position.copy(b.position);scene.add(e);});
+  })();
+  var ctl=new THREE.OrbitControls(camera,canvas);ctl.enableDamping=true;ctl.dampingFactor=.12;ctl.maxPolarAngle=1.2;ctl.minPolarAngle=.35;ctl.minDistance=3;ctl.maxDistance=40;ctl.screenSpacePanning=true;
+  var OV_TGT=new THREE.Vector3(cx,0,cz),OV_DIR=new THREE.Vector3(-.4,1.0,.9).normalize(),OV_DIST=Math.max(W,Dp)*1.55;
+  function viewFor(t,dist){return t.clone().add(OV_DIR.clone().multiplyScalar(dist));}
+  camera.position.copy(viewFor(OV_TGT,OV_DIST));ctl.target.copy(OV_TGT);
+
+  // ---- Punkte: Lampen und Sensoren aus dem Plan plus eigene Punkte, verbunden mit Geräten aus Home Assistant
+  var pinsEl=document.getElementById('pins');
+  var FAN='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm.9-1.9C13.4 6 15 3 17.5 3 20 3 21 5 21 6.5c0 2.6-3.4 4.3-6.6 4.7.3.3.5.6.6.9 3.1.5 6 2.6 6 5.4C21 20 19 21 17.5 21c-2.6 0-4.3-3.4-4.7-6.6-.3.3-.6.5-.9.6-.5 3.1-2.6 6-5.4 6C4 21 3 19 3 17.5c0-2.6 3.4-4.3 6.6-4.7-.3-.3-.5-.6-.6-.9C5.9 11.4 3 9.3 3 6.5 3 4 5 3 6.5 3c2.6 0 4.3 3.4 4.7 6.6.3-.3.6-.5.9-.6z"/></svg>';
+  var TV='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7v2h3v2H7v-2h3v-2H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 2v8h16V7H4z"/></svg>';
+  var BULB='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2zm-2 18h4v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1z"/></svg>';
+  var SYM={licht:{t:'Licht',svg:BULB},luefter:{t:'Lüfter',svg:FAN},tv:{t:'Fernseher',svg:TV},steckdose:{t:'Steckdose',c:'⏻'},temp:{t:'Temperatur',c:'°'},
+    feuchte:{t:'Feuchte',c:'%'},fenster:{t:'Fenster',c:'▢'},tuer:{t:'Tür',c:'⌸'},bewegung:{t:'Bewegung',c:'◎'},heizung:{t:'Heizung',c:'♨'},
+    kuehl:{t:'Kühlen',c:'❄'},robi:{t:'Saugroboter',c:'◉'},drucker:{t:'Drucker',c:'▤'},punkt:{t:'Sonstiges',c:'•'}};
+  var SENS_SYM={'°':'temp','◎':'bewegung','♨':'heizung','▢':'fenster','❄':'kuehl','⌸':'tuer'};
+  var SCHALTBAR=['light','switch','fan','input_boolean'];
+  var ROBI={docked:'in der Station',cleaning:'saugt',returning:'fährt zurück',paused:'pausiert',idle:'wartet',error:'Fehler'};
+  // Geräte, die schon im Arbeitszimmer verbunden waren, werden über ihren Namen in Home Assistant gefunden
+  var HINT={'az.deck':'Deckenlicht Arbeitszimmer','az.piano':'Ikea E14 22','az.iris':'Iris Leuchte Arbeitszimmer','az.desk':'Schreibtischlampe',
+    'az.luftT':'Luft-Sensor Arbeitszimmer Temperatur','az.luftH':'Luft-Sensor Arbeitszimmer Luftfeuchtigkeit','az.fenster':'Fenster Arbeitzimmer',
+    'az.heizung':'Heizung Arbeitszimmer','az.drucker':'3d-Drucker','fl.robi':'Robi'};
+  var DEF=[];
+  ROOMS.forEach(function(r){
+    r.lamps.forEach(function(l){DEF.push({id:r.id+'.'+l.m,raum:r.id,x:l.p[0],y:WH+.5,z:l.p[1],name:l.n,symbol:l.ic==='fan'?'luefter':l.ic==='tv'?'tv':'licht',m:l.m,lampe:true,sim:l.on});});
+    (r.sens||[]).forEach(function(s,i){DEF.push({id:r.id+'.s'+i,raum:r.id,x:s.p[0],y:s.p[2],z:s.p[1],name:s.n,symbol:SENS_SYM[s.i]||'punkt'});});
+  });
+  [['luftT','Temperatur','temp',.05,3.6,1.55],['luftH','Luftfeuchte','feuchte',.05,3.95,1.55],['fenster','Fenster','fenster',1.76,4.18,1.2],
+   ['heizung','Heizung','heizung',1.2,4.1,.6],['drucker','3D-Drucker','drucker',2.76,.66,1.75]].forEach(function(a){
+    var q=AZP(a[3],a[4]);DEF.push({id:'az.'+a[0],raum:'az',x:q[0],y:a[5],z:q[1],name:a[1],symbol:a[2]});});
+  DEF.push({id:'fl.robi',raum:'fl',x:3.75,y:.25,z:4.45,name:'Robi',symbol:'robi'});
+
+  var istPanel=window.parent!==window,admin=!istPanel,OVR={},PTS=[],ENT=[],ST={},GEWOLLT='';
+  function senden(m){if(istPanel)window.parent.postMessage(m,'*');}
+  function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function dom(e){return e?e.split('.')[0]:'';}
+  function fmt(n){return (Math.round(n*10)/10).toString().replace('.',',');}
+  function r3(n){return Math.round(n*1000)/1000;}
+  function entInfo(id){for(var i=0;i<ENT.length;i++)if(ENT[i].id===id)return ENT[i];return null;}
+  function nachName(n){n=n.toLowerCase();for(var i=0;i<ENT.length;i++)if(ENT[i].n.toLowerCase()===n)return ENT[i].id;return null;}
+  function autoSym(eid,info){var d=dom(eid),dc=info&&info.dc;
+    if(d==='light')return 'licht';if(d==='fan')return 'luefter';if(d==='switch'||d==='input_boolean')return 'steckdose';if(d==='climate')return 'heizung';
+    if(d==='vacuum')return 'robi';if(d==='media_player')return 'tv';if(dc==='temperature')return 'temp';if(dc==='humidity')return 'feuchte';
+    if(dc==='window')return 'fenster';if(dc==='door'||dc==='opening')return 'tuer';if(dc==='motion'||dc==='occupancy'||dc==='presence')return 'bewegung';return 'punkt';}
+  function zustand(p){return p.entity_id?ST[p.entity_id]:null;}
+  // Ohne Home Assistant (Vorschau im Browser) schalten die Lampen aus dem Plan nur zum Ausprobieren
+  function schaltbar(p){return p.entity_id?SCHALTBAR.indexOf(dom(p.entity_id))>=0:(!istPanel&&!!p.lampe);}
+  function istAn(p){if(!p.entity_id)return !istPanel&&!!p.sim;var s=ST[p.entity_id];return !!(s&&s.on);}
+  function istLicht(p){return p.entity_id?dom(p.entity_id)==='light':(!istPanel&&!!p.lampe);}
+  function wert(p,s){
+    if(!p.entity_id)return 'kein Gerät';if(!s)return istPanel?'nicht gefunden':'–';
+    if(s.s==='unavailable'||s.s==='unknown')return '–';
+    var d=dom(p.entity_id),dc=s.dc;
+    if(d==='binary_sensor'){if(dc==='window'||dc==='door'||dc==='opening'||dc==='garage_door')return s.s==='on'?'offen':'zu';
+      if(dc==='motion'||dc==='occupancy'||dc==='presence')return s.s==='on'?'Bewegung':'ruhig';return s.s==='on'?'an':'aus';}
+    if(d==='climate')return (s.ist!=null?fmt(s.ist)+'°':s.s)+(s.soll!=null?' → '+fmt(s.soll)+'°':'');
+    if(d==='vacuum')return ROBI[s.s]||s.s;
+    if(SCHALTBAR.indexOf(d)>=0)return s.s==='on'?'an':'aus';
+    var n=parseFloat(s.s);if(!isNaN(n)&&isFinite(s.s))return fmt(n)+(s.u?' '+s.u:'');
+    return s.s;}
+
+  function aufbauen(){
+    PTS.forEach(function(p){p.el.remove();});PTS=[];
+    var da={};
+    DEF.forEach(function(d){da[d.id]=1;var o=OVR[d.id];if(o&&o.geloescht)return;var p=Object.assign({},d,o||{});p.dflt=true;
+      if(!p.entity_id&&HINT[p.id]&&!(o&&'entity_id' in o))p.entity_id=nachName(HINT[p.id]);PTS.push(p);});
+    Object.keys(OVR).forEach(function(k){var o=OVR[k];if(da[k]||o.geloescht||o.x==null)return;PTS.push(Object.assign({id:k},o));});
+    PTS.forEach(function(p){p.v=new THREE.Vector3(p.x,p.y,p.z);p.el=document.createElement('button');p.el.type='button';
+      p.el.onclick=function(){tipp(p)};pinsEl.appendChild(p.el);});
+    var ids=[];PTS.forEach(function(p){if(p.entity_id&&ids.indexOf(p.entity_id)<0)ids.push(p.entity_id);});
+    var t=ids.sort().join(',');if(t!==GEWOLLT){GEWOLLT=t;senden({type:'raum-want',ids:ids});}
+    zeichnen();refresh();
+  }
+  function zeichnen(){
+    PTS.forEach(function(p){var s=zustand(p),sym=SYM[p.symbol||autoSym(p.entity_id,s||entInfo(p.entity_id))]||SYM.punkt,el=p.el;
+      p.rund=schaltbar(p)||(!p.entity_id&&!!p.lampe);
+      el.className=p.rund?'bulb':'sens';
+      if(p.rund){el.innerHTML=sym.svg||'<b>'+sym.c+'</b>';el.classList.toggle('on',istAn(p));}
+      else el.innerHTML='<i>'+(sym.svg||sym.c)+'</i>'+esc(p.name||(s&&s.n)||'Punkt')+' <span>'+esc(wert(p,s))+'</span>';
+      if(!p.entity_id&&istPanel)el.classList.add('frei');
+      if(s&&s.aktion==='heating')el.classList.add('heizt');
+      el.title=(p.name||'Punkt')+(p.entity_id?' · '+p.entity_id:' · noch kein Gerät verbunden');
+      el.setAttribute('aria-label',(p.name||'Punkt')+(p.rund?' schalten':''));
+    });
+  }
+  function schalten(ps,an){
+    var ids=[];ps.forEach(function(p){if(!schaltbar(p))return;if(p.entity_id){ids.push(p.entity_id);var s=ST[p.entity_id];if(s)s.on=an;}else p.sim=an;});
+    if(ids.length)senden({type:'raum-call',ids:ids,on:an});
+    zeichnen();refresh();
+  }
+  function tipp(p){
+    if(edit){editor(p,false);return;}
+    if(schaltbar(p)){schalten([p],!istAn(p));return;}
+    if(!p.entity_id&&admin&&istPanel){editor(p,false);return;}
+    var r=ROOMS.filter(function(x){return x.id===p.raum})[0];if(r&&cur!==r)focus(r);
+  }
+
+  var cur=null,tween=null;
+  var ease=function(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2};
+  function inRaum(r,p){return p.raum===r.id;}
+  function lampsOn(r){return PTS.filter(function(p){return inRaum(r,p)&&istLicht(p)&&istAn(p)}).length;}
+  var chips=document.getElementById('chips'),ctx=document.getElementById('ctx'),sub=document.getElementById('sub'),dock=document.getElementById('dock');
+  function mkBtn(t,fn,cls,aria){var b=document.createElement('button');b.type='button';b.textContent=t;if(cls)b.className=cls;if(aria)b.setAttribute('aria-label',aria);b.onclick=fn;return b;}
+  function refresh(){
+    chips.innerHTML='';
+    chips.appendChild(mkBtn('Alle Räume',function(){focus(null)},cur?'':'on'));
+    ROOMS.forEach(function(r){var n=lampsOn(r);chips.appendChild(mkBtn(r.n+(n?' · '+n:''),function(){focus(r)},cur===r?'on':''));});
+    ctx.innerHTML='';
+    if(!cur){
+      var lichter=PTS.filter(istLicht),an=lichter.filter(istAn);
+      var s=document.createElement('span');s.className='stat';s.textContent=an.length+' von '+lichter.length+' Lichtern an';ctx.appendChild(s);
+      var sp=document.createElement('span');sp.className='sp';ctx.appendChild(sp);
+      ctx.appendChild(mkBtn('Alles aus',function(){schalten(an,false);}));
+    }else{
+      ctx.appendChild(mkBtn('‹',function(){step(-1)},'','Vorheriger Raum'));
+      var eigene=PTS.filter(function(p){return inRaum(cur,p)&&schaltbar(p)});
+      eigene.forEach(function(p){ctx.appendChild(mkBtn(p.name||'Punkt',function(){schalten([p],!istAn(p));},istAn(p)?'on':''));});
+      var sp2=document.createElement('span');sp2.className='sp';ctx.appendChild(sp2);
+      var rl=eigene.filter(istLicht),n=rl.filter(istAn).length;
+      if(rl.length)ctx.appendChild(mkBtn(n?'Raum aus':'Raum an',function(){schalten(rl,!n);}));
+      ctx.appendChild(mkBtn('›',function(){step(1)},'','Nächster Raum'));
+    }
+    sub.textContent=cur?cur.n:'Alle Räume';
+  }
+  function step(d){var i=ROOMS.indexOf(cur);focus(ROOMS[(i+d+ROOMS.length)%ROOMS.length]);}
+  function focus(r){
+    cur=r;
+    var t=r?r.c.clone().setY(.2):OV_TGT.clone(),dist=r?Math.max(5,r.size*1.5+3):OV_DIST;
+    tween={t:0,dur:.9,p0:camera.position.clone(),l0:ctl.target.clone(),p1:viewFor(t,dist),l1:t};
+    ROOMS.forEach(function(x){x.lbl.classList.toggle('hide',!!r);});
+    refresh();
+  }
+  ROOMS.forEach(function(r){r.lbl=document.createElement('button');r.lbl.className='lbl';r.lbl.type='button';r.lbl.textContent=r.n;r.lbl.onclick=function(){focus(r)};pinsEl.appendChild(r.lbl);});
+
+  // ---- Punkte bearbeiten: Stelle antippen, Gerät wählen, speichern
+  var edit=false,wartet=null;
+  var editBtn=document.getElementById('editBtn'),hint=document.getElementById('hint'),sheet=document.getElementById('sheet');
+  var shT=document.getElementById('shT'),shName=document.getElementById('shName'),shSuch=document.getElementById('shSuch'),shListe=document.getElementById('shListe'),
+      shSym=document.getElementById('shSym'),shDel=document.getElementById('shDel'),shMove=document.getElementById('shMove');
+  function hinweis(t){hint.textContent=t;hint.hidden=!t;}
+  function setEdit(on){edit=on;wartet=null;document.body.classList.toggle('edit',on);editBtn.textContent=on?'✓ Fertig':'✎ Punkte';editBtn.classList.toggle('on',on);
+    hinweis(on?'Tippe auf eine Stelle im Plan für einen neuen Punkt, oder auf einen Punkt, um ihn zu ändern.':'');if(!on)schliessen();}
+  editBtn.onclick=function(){setEdit(!edit);};
+  var ed=null;
+  function editor(p,neu){ed={p:p,neu:neu,eid:p.entity_id||null,sym:p.symbol||null,auto:!p.name};
+    shT.textContent=neu?'Neuer Punkt':'Punkt bearbeiten';shName.value=p.name||'';shSuch.value='';shDel.hidden=neu;shMove.hidden=neu;
+    liste();syms();sheet.hidden=false;dock.hidden=true;hint.hidden=true;}
+  function schliessen(){sheet.hidden=true;dock.hidden=false;ed=null;if(edit&&!wartet)hinweis('Tippe auf eine Stelle im Plan für einen neuen Punkt, oder auf einen Punkt, um ihn zu ändern.');}
+  function zeile(id,n,on,fn){var b=document.createElement('button');b.type='button';b.className='ent'+(on?' on':'');b.setAttribute('role','option');b.setAttribute('aria-selected',on?'true':'false');
+    b.innerHTML='<span>'+esc(n)+'</span>'+(id?'<small>'+esc(id)+'</small>':'');b.onclick=fn;shListe.appendChild(b);}
+  function waehle(id,n){ed.eid=id;if(ed.auto)shName.value=n||'';liste();syms();}
+  function liste(){
+    var q=shSuch.value.trim().toLowerCase();shListe.innerHTML='';
+    if(ed.eid){var e=entInfo(ed.eid);zeile(ed.eid,e?e.n:ed.eid,true,function(){});}
+    zeile('','Kein Gerät (nur Markierung)',!ed.eid,function(){ed.eid=null;liste();syms();});
+    if(!ENT.length){var m=document.createElement('p');m.className='leer';m.textContent=istPanel?'Geräteliste wird geladen …':'Die Geräteliste gibt es nur in Home Assistant.';shListe.appendChild(m);return;}
+    var L=ENT.filter(function(e){return e.id!==ed.eid&&(!q||e.n.toLowerCase().indexOf(q)>=0||e.id.indexOf(q)>=0);});
+    L.slice(0,60).forEach(function(e){zeile(e.id,e.n,false,function(){waehle(e.id,e.n);});});
+    if(L.length>60){var m2=document.createElement('p');m2.className='leer';m2.textContent=(L.length-60)+' weitere, Suche eingrenzen';shListe.appendChild(m2);}
+  }
+  function syms(){shSym.innerHTML='';var aktiv=ed.sym||autoSym(ed.eid,entInfo(ed.eid));
+    Object.keys(SYM).forEach(function(k){var s=SYM[k],b=document.createElement('button');b.type='button';b.className='sym'+(aktiv===k?' on':'');b.title=s.t;
+      b.setAttribute('aria-label','Symbol '+s.t);b.innerHTML=s.svg||s.c;b.onclick=function(){ed.sym=k;syms();};shSym.appendChild(b);});}
+  shSuch.oninput=liste;shName.oninput=function(){ed.auto=!shName.value;};
+  function datensatz(p,eid,name,sym){return {raum:p.raum,x:r3(p.x),y:r3(p.y),z:r3(p.z),entity_id:eid||null,name:name||null,symbol:sym||null};}
+  document.getElementById('shOk').onclick=function(){var p=ed.p;OVR[p.id]=datensatz(p,ed.eid,shName.value.trim(),ed.sym);speichern();schliessen();};
+  document.getElementById('shX').onclick=schliessen;
+  shDel.onclick=function(){var p=ed.p;if(p.dflt)OVR[p.id]={geloescht:true};else delete OVR[p.id];speichern();schliessen();};
+  shMove.onclick=function(){var p=ed.p;wartet={p:p,eid:ed.eid,name:shName.value.trim(),sym:ed.sym};schliessen();hinweis('Tippe auf die neue Stelle für „'+(wartet.name||'Punkt')+'“.');};
+  function raumBei(x,z){var best=null,bd=1e9;ROOMS.forEach(function(r){r.rects.forEach(function(q){
+    var dx=Math.max(q[0]-x,0,x-q[2]),dz=Math.max(q[1]-z,0,z-q[3]),d=dx*dx+dz*dz;if(d<bd){bd=d;best=r;}});});return best?best.id:null;}
+  function setzen(pt){
+    var raum=raumBei(pt.x,pt.z);
+    if(wartet){var w=wartet,p=w.p;wartet=null;p.x=pt.x;p.y=pt.y;p.z=pt.z;p.raum=raum;OVR[p.id]=datensatz(p,w.eid,w.name,w.sym);speichern();
+      hinweis('Tippe auf eine Stelle im Plan für einen neuen Punkt, oder auf einen Punkt, um ihn zu ändern.');return;}
+    editor({id:'p'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36),raum:raum,x:pt.x,y:pt.y,z:pt.z},true);
+  }
+  var speicherNr=0;
+  function speichern(){aufbauen();
+    if(istPanel)senden({type:'raum-save',punkte:OVR,nr:++speicherNr});
+    else try{localStorage.setItem('raum-punkte',JSON.stringify(OVR));}catch(e){}}
+
+  // ---- Nachrichten vom Panel in Home Assistant
+  addEventListener('message',function(ev){
+    if(!istPanel||ev.source!==window.parent)return;var m=ev.data||{};
+    if(m.type==='raum-init'){admin=!!m.admin;editBtn.hidden=!admin;}
+    else if(m.type==='raum-entities'){ENT=m.list||[];aufbauen();if(ed)liste();}
+    else if(m.type==='raum-punkte'){OVR=m.punkte||{};aufbauen();}
+    else if(m.type==='raum-states'){ST=m.v||{};zeichnen();refresh();}
+    else if(m.type==='raum-fehler'){hinweis(m.text||'Speichern hat nicht geklappt.');hint.hidden=false;}
+  });
+  if(!istPanel)try{OVR=JSON.parse(localStorage.getItem('raum-punkte')||'{}')||{};}catch(e){OVR={};}
+  editBtn.hidden=!admin;
+
+  // Tippen auf den Boden fokussiert den Raum, Tippen ins Leere zeigt wieder alles; beim Bearbeiten setzt Tippen einen Punkt
+  var ray=new THREE.Raycaster(),mouse=new THREE.Vector2(),down=null;
+  function sichtbar(o){while(o){if(!o.visible)return false;o=o.parent;}return true;}
+  function treffer(){var hs=ray.intersectObjects(scene.children,true);
+    for(var i=0;i<hs.length;i++){var h=hs[i],o=h.object,mt=o.material;
+      if(!o.isMesh||!sichtbar(o)||(mt&&mt.transparent&&mt.opacity<.05))continue;
+      var n=h.face?h.face.normal.clone().transformDirection(o.matrixWorld):new THREE.Vector3(0,1,0);
+      return h.point.clone().add(n.multiplyScalar(.04));}
+    return null;}
+  canvas.addEventListener('pointerdown',function(e){down={x:e.clientX,y:e.clientY,m:false}});
+  canvas.addEventListener('pointermove',function(e){if(down&&Math.abs(e.clientX-down.x)+Math.abs(e.clientY-down.y)>6)down.m=true;});
+  canvas.addEventListener('pointerup',function(e){
+    var tap=down&&!down.m;down=null;if(!tap)return;
+    var r=canvas.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,camera);
+    if(edit){if(ed)return;var pt=treffer();if(pt)setzen(pt);return;}
+    var h=ray.intersectObjects(floors)[0];
+    if(h){if(h.object.userData.room!==cur)focus(h.object.userData.room);}else if(cur)focus(null);
+  });
+  addEventListener('keydown',function(e){if(e.target&&e.target.tagName==='INPUT')return;if(e.key==='Escape'){if(ed)schliessen();else focus(null);}if(e.key==='ArrowRight'&&cur)step(1);if(e.key==='ArrowLeft'&&cur)step(-1);});
+
+  var clock=new THREE.Clock(),pv=new THREE.Vector3();
+  function resize(){var w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+  addEventListener('resize',resize);resize();
+  var MATS={wz:wzMats,ez:wzMats,az:azMats,fl:flMats,sz:szMats,bd:bdMats,ku:kuMats};
+  var FARBE={az:{deck:0xfff2c2,piano:0xffd9a8,iris:0xff4fa3,desk:0xffe9c4},ku:{deck:0xfff2c2,hood:0xfff0d0,work:0xffe9c4},sz:{led:0xf3e36a},bd:{fan:0x5eead4}};
+  function frame(){
+    var dt=Math.min(.05,clock.getDelta());
+    if(tween){tween.t+=dt/tween.dur;var k=ease(Math.min(1,tween.t));
+      camera.position.lerpVectors(tween.p0,tween.p1,k);ctl.target.lerpVectors(tween.l0,tween.l1,k);if(tween.t>=1)tween=null;}
+    ctl.update();
+    ROOMS.forEach(function(r){
+      var want=lampsOn(r)?1:0;r.k+=(want-r.k)*Math.min(1,dt*4);
+      r.light.intensity=r.k*.45;
+      var dim=cur&&cur!==r;
+      r.floorMats.forEach(function(m){m.color.copy(r.base).lerp(r.lit,r.k);m.opacity+=((dim?.55:1)-m.opacity)*Math.min(1,dt*6);});
+    });
+    var GR={wz:wzGrp,az:azGrp,fl:flGrp,sz:szGrp,bd:bdGrp,ku:kuGrp},cid=cur?(cur.id==='ez'?'wz':cur.id):null;for(var gk in GR)GR[gk].visible=!cid||gk===cid;
+    // Lampen im Modell leuchten, wenn ihr Punkt an ist (gelöschte Punkte bleiben aus)
+    for(var rk in MATS)for(var mk in MATS[rk]){var mm=MATS[rk][mk];if(mk==='amb')mm.opacity=0;else if(mk==='tv')mm.color.set(0x0b0b0c);else if(mm.color)mm.color.set(0x2a2a2a);}
+    PTS.forEach(function(p){if(!p.m||!MATS[p.raum]||!MATS[p.raum][p.m]||!istAn(p))return;var mm=MATS[p.raum][p.m];
+      if(p.m==='amb'){mm.color.set(0x6a8cff);mm.opacity=.55;}else if(p.m==='tv')mm.color.set(0x2c4f86);else mm.color.set((FARBE[p.raum]&&FARBE[p.raum][p.m])||0xfff0c8);});
+    var w=stage.clientWidth,h=stage.clientHeight;
+    function place(el,v,hide){pv.copy(v).project(camera);var vis=!hide&&pv.z<1;el.style.display=vis?'':'none';if(vis)el.style.transform='translate('+((pv.x*.5+.5)*w)+'px,'+((-pv.y*.5+.5)*h)+'px) translate(-50%,-50%)';}
+    ROOMS.forEach(function(r){
+      pv.set(r.c.x,.05,r.c.z+r.size*.22);
+      if(!r.lbl.classList.contains('hide')){place(r.lbl,pv,false);}else r.lbl.style.display='none';
+    });
+    PTS.forEach(function(p){var fremd=cur&&cur.id!==p.raum&&!(cur.id==='wz'&&p.raum==='ez')&&!(cur.id==='ez'&&p.raum==='wz');
+      place(p.el,p.v,!edit&&!p.rund&&(!cur||fremd));p.el.style.opacity=fremd?.35:1;});
+    renderer.render(scene,camera);requestAnimationFrame(frame);
+  }
+  aufbauen();frame();
+  senden({type:'raum-ready'});
+})();
+</script>
+</body>
+</html>

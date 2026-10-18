@@ -2,7 +2,7 @@
 
 Die Dateien liegen in frontend/. Diese Integration stellt sie bereit und meldet das Panel an.
 In die configuration.yaml muss nichts. Die Seite liest und schaltet nur über das Home-Assistant-Frontend,
-mit den Rechten des angemeldeten Benutzers.
+mit den Rechten des angemeldeten Benutzers. Eigene Punkte im Plan speichert punkte.py in Home Assistant.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PANEL_PFAD, URL_BASIS
+from .punkte import async_registrieren
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.http.async_register_static_paths([StaticPathConfig(URL_BASIS, str(ORDNER), False)])
         daten["pfad"] = True
 
+    async_registrieren(hass)
     version = await hass.async_add_executor_job(_version)
     await panel_custom.async_register_panel(
         hass,
