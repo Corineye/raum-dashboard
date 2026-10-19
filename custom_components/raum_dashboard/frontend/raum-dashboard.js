@@ -132,7 +132,7 @@ class RaumDashboardPanel extends HTMLElement {
       this._zuletzt = "";
       this._anzahl = -1;
       const admin = !!(this._hass.user && this._hass.user.is_admin);
-      this._post({ type: "raum-init", admin });
+      this._post({ type: "raum-init", admin, darstellung: (this._konf && this._konf.darstellung) || null });
       this._senden();
       this._punkteLaden();
       // Änderungen von einem anderen Gerät sofort übernehmen (nur für Administratoren abonnierbar)

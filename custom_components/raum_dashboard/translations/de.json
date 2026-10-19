@@ -9,5 +9,21 @@
     "abort": {
       "single_instance_allowed": "Das Raum-Dashboard ist schon eingerichtet."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Darstellung",
+        "description": "Gilt nach dem nächsten Neuladen der Seite „Räume“.",
+        "data": {
+          "moebel_durchsichtig": "Möbel durchsichtig",
+          "outlines_leuchten": "Outlines leuchten"
+        },
+        "data_description": {
+          "moebel_durchsichtig": "0 % = voll sichtbar, 100 % = fast unsichtbar. Wände und Böden bleiben.",
+          "outlines_leuchten": "0 % = aus. Höhere Werte lassen die Kanten leuchten und brauchen etwas mehr Rechenleistung."
+        }
+      }
+    }
   }
 }

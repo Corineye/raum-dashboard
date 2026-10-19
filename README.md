@@ -24,6 +24,17 @@ Die Punkte speichert die Integration in Home Assistant (`.storage/raum_dashboard
 3. Einstellungen › Geräte & Dienste › Integration hinzufügen › **Raum-Dashboard** (nur bestätigen).
 4. Seite „Räume“ erscheint in der Seitenleiste.
 
+## Darstellung
+
+Einstellungen › Geräte & Dienste › Raum-Dashboard › **Konfigurieren**: zwei Regler.
+
+- **Möbel durchsichtig** (0–100 %): macht die Möbel durchsichtig, Wände und Böden bleiben.
+- **Outlines leuchten** (0–100 %): lässt die Kanten leuchten. Braucht etwas mehr Rechenleistung, solange der Wert über 0 steht.
+
+Nach dem Speichern die Seite „Räume“ einmal neu laden.
+
+Raum antippen zoomt hinein, denselben Raum nochmal antippen zoomt wieder heraus.
+
 ## Was die Seite darf
 
 - Lesen: alle Zustände, die das Home-Assistant-Frontend dem angemeldeten Benutzer zeigt.

@@ -792,7 +792,9 @@ body.schmal #title{left:60px}
   // ---- Nachrichten vom Panel in Home Assistant
   addEventListener('message',function(ev){
     if(!istPanel||ev.source!==window.parent)return;var m=ev.data||{};
-    if(m.type==='raum-init'){admin=!!m.admin;editBtn.hidden=!admin;}
+    if(m.type==='raum-init'){admin=!!m.admin;editBtn.hidden=!admin;
+      // In Home Assistant kommen die Werte aus den Integrations-Einstellungen (Konfigurieren), nicht aus der Seite
+      var dd=m.darstellung||{};vt=Math.max(0,Math.min(1,(+dd.moebel||0)/100));vg=Math.max(0,Math.min(1,(+dd.glow||0)/100));darstellung();}
     else if(m.type==='raum-entities'){ENT=m.list||[];aufbauen();if(ed)liste();}
     else if(m.type==='raum-punkte'){OVR=m.punkte||{};aufbauen();}
     else if(m.type==='raum-states'){ST=m.v||{};zeichnen();refresh();}
@@ -905,11 +907,12 @@ body.schmal #title{left:60px}
     gespeichert.forEach(function(m,o){o.material=m;});gespeichert.clear();scene.background=bg;
     finalC.render();
   }
-  function speichereDarst(){try{localStorage.setItem('raum-darstellung',JSON.stringify({vt:vt,vg:vg}));}catch(e){}}
+  function speichereDarst(){if(istPanel)return;try{localStorage.setItem('raum-darstellung',JSON.stringify({vt:vt,vg:vg}));}catch(e){}}
   vtR.oninput=function(){vt=vtR.value/100;darstellung();speichereDarst();};
   vgR.oninput=function(){vg=vgR.value/100;darstellung();speichereDarst();};
   viewBtn.onclick=function(){viewEl.hidden=!viewEl.hidden;viewBtn.classList.toggle('on',!viewEl.hidden);viewBtn.setAttribute('aria-expanded',!viewEl.hidden);};
-  try{var d0=JSON.parse(localStorage.getItem('raum-darstellung')||'null');if(d0){vt=Math.max(0,Math.min(1,+d0.vt||0));vg=Math.max(0,Math.min(1,+d0.vg||0));vtR.value=vt*100;vgR.value=vg*100;}}catch(e){}
+  if(istPanel){viewBtn.hidden=true;viewEl.hidden=true;}
+  else try{var d0=JSON.parse(localStorage.getItem('raum-darstellung')||'null');if(d0){vt=Math.max(0,Math.min(1,+d0.vt||0));vg=Math.max(0,Math.min(1,+d0.vg||0));vtR.value=vt*100;vgR.value=vg*100;}}catch(e){}
   if(vt>0||vg>0)darstellung();
   aufbauen();frame();
   senden({type:'raum-ready'});
