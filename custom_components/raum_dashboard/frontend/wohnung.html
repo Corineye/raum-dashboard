@@ -43,6 +43,8 @@ button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .sens.heizt i{background:#fb923c33;color:#fb923c}
 body.edit .bulb,body.edit .sens{outline:2px dashed #5eead488;outline-offset:2px}
 body.edit canvas{cursor:crosshair}
+#allBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(122px,calc(env(safe-area-inset-top,0px) + 108px));background:var(--panel)}
+#allBtn.on{border-color:var(--mint);color:var(--mint)}
 #editBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(78px,calc(env(safe-area-inset-top,0px) + 64px));background:var(--panel)}
 #hint{left:50%;transform:translateX(-50%);top:max(14px,env(safe-area-inset-top,0px));max-width:min(460px,calc(100% - 28px));padding:8px 14px;font-size:13px;text-align:center;z-index:6;border-color:#5eead466}
 #sheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 28px));max-height:min(78vh,640px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
@@ -50,7 +52,7 @@ body.edit canvas{cursor:crosshair}
 #sheet input{font:inherit;color:var(--fg);background:#0b1111;border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:40px}
 #sheet input:focus{outline:2px solid var(--mint);outline-offset:1px}
 #shListe{display:flex;flex-direction:column;gap:4px;max-height:34vh;overflow:auto;padding-right:2px}
-#shListe .ent{display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left;white-space:normal;min-height:0;padding:7px 10px}
+#shListe .ent{display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left;white-space:normal;min-height:0;flex:0 0 auto;padding:7px 10px}
 #shListe .ent small{color:var(--muted);font-size:11px}
 #shListe .ent.on small{color:var(--mint)}
 #shListe .leer{margin:4px 2px;color:var(--muted);font-size:12px}
@@ -67,6 +69,7 @@ body.schmal #title{left:60px}
 <div id="pins"></div>
 <div class="chip" id="title"><b>Wohnung</b><span id="sub">Alle Räume</span></div>
 <button type="button" id="editBtn" hidden>✎ Punkte</button>
+<button type="button" id="allBtn" aria-pressed="false">◉ Alle Punkte zeigen</button>
 <div class="chip" id="hint" role="status" hidden></div>
 <div class="chip" id="sheet" role="dialog" aria-labelledby="shT" hidden>
   <div class="row"><b id="shT">Neuer Punkt</b><span class="sp"></span><button type="button" id="shX" aria-label="Schließen">✕</button></div>
@@ -185,7 +188,6 @@ body.schmal #title{left:60px}
     bx(4.45,5.05,4.2,4.6,1.6,2.3,WHITE);
     bx(4.88,5.0,4.32,4.44,.93,1.0,0xf5f5f5,{lc:0x5eead4});                            // Temperatursensor
     // Bilder an der Nordwand Richtung Wohnungstür, Saugroboter am Spiegel
-    var rb=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.09,28),new THREE.MeshStandardMaterial({color:0x1b2425}));rb.position.set(3.75,.045,4.45);g.add(rb);
     // Deckenleuchte mit drei Spots
     var sm=new THREE.MeshBasicMaterial({color:0x2a2a2a});
     [[-.18,0],[0,0],[.18,0]].forEach(function(o){var s=new THREE.Mesh(new THREE.CylinderGeometry(.07,.05,.12,16),sm);s.position.set(5.2+o[0],2.35,5.1+o[1]);g.add(s);});
@@ -596,7 +598,7 @@ body.schmal #title{left:60px}
       var e=new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry),LINE);e.position.copy(b.position);scene.add(e);});
   })();
   var ctl=new THREE.OrbitControls(camera,canvas);ctl.enableDamping=true;ctl.dampingFactor=.12;ctl.maxPolarAngle=1.2;ctl.minPolarAngle=.35;ctl.minDistance=3;ctl.maxDistance=40;ctl.screenSpacePanning=true;
-  var OV_TGT=new THREE.Vector3(cx,0,cz),OV_DIR=new THREE.Vector3(-.4,1.0,.9).normalize(),OV_DIST=Math.max(W,Dp)*1.55;
+  var OV_TGT=new THREE.Vector3(cx,0,cz),OV_DIR=new THREE.Vector3(-.4,1.0,.9).normalize(),OV_DIST=Math.max(W,Dp)*2.0;
   function viewFor(t,dist){return t.clone().add(OV_DIR.clone().multiplyScalar(dist));}
   camera.position.copy(viewFor(OV_TGT,OV_DIST));ctl.target.copy(OV_TGT);
 
@@ -614,7 +616,7 @@ body.schmal #title{left:60px}
   // Geräte, die schon im Arbeitszimmer verbunden waren, werden über ihren Namen in Home Assistant gefunden
   var HINT={'az.deck':'Deckenlicht Arbeitszimmer','az.piano':'Ikea E14 22','az.iris':'Iris Leuchte Arbeitszimmer','az.desk':'Schreibtischlampe',
     'az.luftT':'Luft-Sensor Arbeitszimmer Temperatur','az.luftH':'Luft-Sensor Arbeitszimmer Luftfeuchtigkeit','az.fenster':'Fenster Arbeitzimmer',
-    'az.heizung':'Heizung Arbeitszimmer','az.drucker':'3d-Drucker','fl.robi':'Robi'};
+    'az.heizung':'Heizung Arbeitszimmer','az.drucker':'3d-Drucker'};
   var DEF=[];
   ROOMS.forEach(function(r){
     r.lamps.forEach(function(l){DEF.push({id:r.id+'.'+l.m,raum:r.id,x:l.p[0],y:WH+.5,z:l.p[1],name:l.n,symbol:l.ic==='fan'?'luefter':l.ic==='tv'?'tv':'licht',m:l.m,lampe:true,sim:l.on});});
@@ -623,7 +625,6 @@ body.schmal #title{left:60px}
   [['luftT','Temperatur','temp',.05,3.6,1.55],['luftH','Luftfeuchte','feuchte',.05,3.95,1.55],['fenster','Fenster','fenster',1.76,4.18,1.2],
    ['heizung','Heizung','heizung',1.2,4.1,.6],['drucker','3D-Drucker','drucker',2.76,.66,1.75]].forEach(function(a){
     var q=AZP(a[3],a[4]);DEF.push({id:'az.'+a[0],raum:'az',x:q[0],y:a[5],z:q[1],name:a[1],symbol:a[2]});});
-  DEF.push({id:'fl.robi',raum:'fl',x:3.75,y:.25,z:4.45,name:'Robi',symbol:'robi'});
 
   var istPanel=window.parent!==window,admin=!istPanel,OVR={},PTS=[],ENT=[],ST={},GEWOLLT='';
   function senden(m){if(istPanel)window.parent.postMessage(m,'*');}
@@ -728,7 +729,8 @@ body.schmal #title{left:60px}
   ROOMS.forEach(function(r){r.lbl=document.createElement('button');r.lbl.className='lbl';r.lbl.type='button';r.lbl.textContent=r.n;r.lbl.onclick=function(){focus(r)};pinsEl.appendChild(r.lbl);});
 
   // ---- Punkte bearbeiten: Stelle antippen, Gerät wählen, speichern
-  var edit=false,wartet=null;
+  var edit=false,wartet=null,allePunkte=false;
+  var allBtn=document.getElementById('allBtn');allBtn.onclick=function(){allePunkte=!allePunkte;allBtn.classList.toggle('on',allePunkte);allBtn.setAttribute('aria-pressed',allePunkte);allBtn.textContent=allePunkte?'◉ Punkte nur im Raum':'◉ Alle Punkte zeigen';};
   var editBtn=document.getElementById('editBtn'),hint=document.getElementById('hint'),sheet=document.getElementById('sheet');
   var shT=document.getElementById('shT'),shName=document.getElementById('shName'),shSuch=document.getElementById('shSuch'),shListe=document.getElementById('shListe'),
       shSym=document.getElementById('shSym'),shDel=document.getElementById('shDel'),shMove=document.getElementById('shMove');
@@ -796,12 +798,20 @@ body.schmal #title{left:60px}
       var n=h.face?h.face.normal.clone().transformDirection(o.matrixWorld):new THREE.Vector3(0,1,0);
       return h.point.clone().add(n.multiplyScalar(.04));}
     return null;}
+  // Tippt man direkt auf eine Lampe im Modell (Leuchte, Fernseher, Ambilight …), wird sie geschaltet
+  function lampeAn(){var hs=ray.intersectObjects(scene.children,true);
+    for(var i=0;i<hs.length;i++){var o=hs[i].object,mt=o.material;
+      if(!o.isMesh||!sichtbar(o)||(mt&&mt.transparent&&mt.opacity<.05))continue;
+      for(var k=0;k<PTS.length;k++){var q=PTS[k];if(q.m&&schaltbar(q)&&MATS[q.raum]&&MATS[q.raum][q.m]===mt)return q;}
+      return null;}
+    return null;}
   canvas.addEventListener('pointerdown',function(e){down={x:e.clientX,y:e.clientY,m:false}});
   canvas.addEventListener('pointermove',function(e){if(down&&Math.abs(e.clientX-down.x)+Math.abs(e.clientY-down.y)>6)down.m=true;});
   canvas.addEventListener('pointerup',function(e){
     var tap=down&&!down.m;down=null;if(!tap)return;
     var r=canvas.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,camera);
     if(edit){if(ed)return;var pt=treffer();if(pt)setzen(pt);return;}
+    var lp=lampeAn();if(lp){schalten([lp],!istAn(lp));return;}
     var h=ray.intersectObjects(floors)[0];
     if(h){if(h.object.userData.room!==cur)focus(h.object.userData.room);}else if(cur)focus(null);
   });
@@ -834,8 +844,9 @@ body.schmal #title{left:60px}
       pv.set(r.c.x,.05,r.c.z+r.size*.22);
       if(!r.lbl.classList.contains('hide')){place(r.lbl,pv,false);}else r.lbl.style.display='none';
     });
+    // Ausgezoomt sieht man keine Punkte. Sie erscheinen, sobald man einen Raum öffnet (oder „Alle Punkte zeigen“ wählt)
     PTS.forEach(function(p){var fremd=cur&&cur.id!==p.raum&&!(cur.id==='wz'&&p.raum==='ez')&&!(cur.id==='ez'&&p.raum==='wz');
-      place(p.el,p.v,!edit&&!p.rund&&(!cur||fremd));p.el.style.opacity=fremd?.35:1;});
+      place(p.el,p.v,!(edit||allePunkte||(cur&&!fremd)));p.el.style.opacity=fremd?.35:1;});
     renderer.render(scene,camera);requestAnimationFrame(frame);
   }
   aufbauen();frame();
