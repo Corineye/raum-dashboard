@@ -9,5 +9,25 @@
     "abort": {
       "single_instance_allowed": "Das Raum-Dashboard ist schon eingerichtet."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Darstellung",
+        "description": "Gilt nach dem nächsten Neuladen der Seite „Räume“.",
+        "data": {
+          "moebel_durchsichtig": "Möbel durchsichtig",
+          "outlines_leuchten": "Outlines leuchten",
+          "temperatur_farben": "Räume nach Temperatur färben",
+          "himmel_nach_zeit": "Licht und Himmel nach Tageszeit und Wetter"
+        },
+        "data_description": {
+          "moebel_durchsichtig": "0 % = voll sichtbar, 100 % = fast unsichtbar. Wände und Böden bleiben.",
+          "outlines_leuchten": "0 % = aus. Höhere Werte lassen die Kanten leuchten und brauchen etwas mehr Rechenleistung.",
+          "temperatur_farben": "Der Boden jedes Raums wird kälter blau und wärmer orange, wenn dort ein Temperatursensor als Punkt steht.",
+          "himmel_nach_zeit": "Sonnenstand aus sun.sun, Wetter aus der ersten weather-Entität. Fehlen sie, gilt die Uhrzeit."
+        }
+      }
+    }
   }
 }

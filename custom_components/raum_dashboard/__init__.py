@@ -16,7 +16,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, PANEL_PFAD, URL_BASIS
+from .const import DOMAIN, OPT_GLOW, OPT_HIMMEL, OPT_MOEBEL, OPT_TEMPERATUR, PANEL_PFAD, STANDARD_PROZENT, URL_BASIS
 from .punkte import async_registrieren
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,9 +47,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sidebar_icon="mdi:cube-scan",
         module_url=f"{URL_BASIS}/raum-dashboard.js?v={version}",
         require_admin=False,
-        config={"basis": URL_BASIS, "version": version},
+        config={
+            "basis": URL_BASIS,
+            "version": version,
+            "darstellung": {
+                "moebel": entry.options.get(OPT_MOEBEL, STANDARD_PROZENT),
+                "glow": entry.options.get(OPT_GLOW, STANDARD_PROZENT),
+                "temperatur": entry.options.get(OPT_TEMPERATUR, True),
+                "himmel": entry.options.get(OPT_HIMMEL, True),
+            },
+        },
     )
+    entry.async_on_unload(entry.add_update_listener(_neu_laden))
     return True
+
+
+async def _neu_laden(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Änderungen unter „Konfigurieren“ übernehmen: Panel mit den neuen Werten neu anmelden."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
