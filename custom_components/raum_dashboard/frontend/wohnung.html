@@ -61,6 +61,15 @@ body.edit canvas{cursor:crosshair}
 #view input{grid-column:1/-1;width:100%;accent-color:var(--mint);min-height:28px}
 #allBtn.on{border-color:var(--mint);color:var(--mint)}
 #editBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(94px,calc(env(safe-area-inset-top,0px) + 80px));background:var(--panel)}
+#dSheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 28px));padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
+#dSheet .gross{font-size:30px;font-weight:600;line-height:1.1}
+#dSheet .gross small{font-size:13px;color:var(--muted);font-weight:400;margin-left:8px}
+#dSheet .stats{display:flex;gap:16px;color:var(--muted);font-size:12px;flex-wrap:wrap}
+#dSheet .stats b{color:var(--fg);font-weight:500}
+#dSheet svg{width:100%;height:auto;display:block;touch-action:none}
+#dSheet .ax{fill:var(--muted);font-size:10px}
+#dSheet .leer{color:var(--muted);font-size:13px;padding:30px 0;text-align:center}
+#dSheet .grab{align-self:center;width:36px;height:4px;border-radius:2px;background:#ffffff33;margin:-6px 0 0}
 #hint{left:50%;transform:translateX(-50%);top:max(14px,env(safe-area-inset-top,0px));max-width:min(460px,calc(100% - 28px));padding:8px 14px;font-size:13px;text-align:center;z-index:6;border-color:#5eead466}
 #sheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 28px));max-height:min(78vh,640px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
 #sheet label,#sheet .lab{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}
@@ -95,6 +104,14 @@ body.schmal #title{left:60px}
 <div class="chip" id="szSheet" role="dialog" aria-label="Szene speichern" hidden>
   <label>Name der Szene (speichert, welche Lampen und Schalter jetzt an und aus sind)<input id="szName" maxlength="40" autocomplete="off" placeholder="z. B. Fernsehabend"></label>
   <div class="row"><button type="button" id="szX">Abbrechen</button><span class="sp"></span><button type="button" id="szOk" class="on">Speichern</button></div>
+</div>
+<div class="chip" id="dSheet" role="dialog" aria-labelledby="dT" hidden>
+  <div class="grab"></div>
+  <div class="row"><b id="dT">Sensor</b><span class="sp"></span><button type="button" id="dX" aria-label="Schließen">✕</button></div>
+  <div class="gross" id="dW"></div>
+  <div class="row" id="dR"></div>
+  <div id="dG"></div>
+  <div class="stats" id="dS"></div>
 </div>
 <div class="chip" id="hint" role="status" hidden></div>
 <div class="chip" id="sheet" role="dialog" aria-labelledby="shT" hidden>
@@ -705,7 +722,7 @@ body.schmal #title{left:60px}
       el.title=(p.name||'Punkt')+(p.entity_id?' · '+p.entity_id:' · noch kein Gerät verbunden');
       el.setAttribute('aria-label',(p.name||'Punkt')+(p.rund?' schalten':''));
     });
-    tempUpdate();warnZeigen();
+    tempUpdate();warnZeigen();dWert();
   }
   function schalten(ps,an){
     var ids=[];ps.forEach(function(p){if(!schaltbar(p))return;if(p.entity_id){ids.push(p.entity_id);var s=ST[p.entity_id];if(s)s.on=an;}else p.sim=an;});
@@ -716,6 +733,7 @@ body.schmal #title{left:60px}
     if(edit){editor(p,false);return;}
     if(schaltbar(p)){schalten([p],!istAn(p));return;}
     if(!p.entity_id&&admin&&istPanel){editor(p,false);return;}
+    if((p.entity_id||!istPanel)&&!schaltbar(p)){dOeffnen(p);return;}
     var r=ROOMS.filter(function(x){return x.id===p.raum})[0];if(r&&cur!==r)focus(r);
   }
 
@@ -807,6 +825,77 @@ body.schmal #title{left:60px}
     if(istPanel)senden({type:'raum-save',punkte:OVR,nr:++speicherNr});
     else try{localStorage.setItem('raum-punkte',JSON.stringify(OVR));}catch(e){}}
 
+
+  // ---- Details zu einem Sensor: aktueller Wert und Verlauf
+  var dSheet=document.getElementById('dSheet'),dRq=0,dP=null,dStd=24,dDaten=null;
+  var D_ZEIT=[[6,'6 h'],[24,'24 h'],[168,'7 Tage']];
+  function dZu(){dSheet.hidden=true;dock.hidden=false;dP=null;}
+  function dOeffnen(p){dP=p;dSheet.hidden=false;dock.hidden=true;hint.hidden=true;
+    document.getElementById('dT').textContent=p.name||(zustand(p)&&zustand(p).n)||'Sensor';
+    var r=document.getElementById('dR');r.innerHTML='';
+    D_ZEIT.forEach(function(z){r.appendChild(mkBtn(z[1],function(){dStd=z[0];dOeffnenZeit();},dStd===z[0]?'on':''));});
+    dWert();dLaden();}
+  function dOeffnenZeit(){if(!dP)return;var r=document.getElementById('dR');[].forEach.call(r.children,function(b,i){b.classList.toggle('on',D_ZEIT[i][0]===dStd);});dLaden();}
+  function dLaden(){dDaten=null;dZeichnen();var id=++dRq;
+    if(istPanel){senden({type:'raum-hist',id:id,entity:dP.entity_id,stunden:dStd});return;}
+    // Vorschau im Browser: Beispielkurve
+    var n=Date.now(),a=[],k=dStd*6,s=zustand(dP),b=s?parseFloat(s.s):NaN;if(!isFinite(b))b=21;
+    for(var i=0;i<=k;i++)a.push([n-(k-i)*600000,Math.round((b+1.6*Math.sin(i/k*6.3*dStd/24)+Math.sin(i*1.7)*.15)*10)/10]);
+    setTimeout(function(){if(id===dRq){dDaten=a;dZeichnen();}},200);}
+  function dWert(){if(!dP)return;var s=zustand(dP),w=document.getElementById('dW');
+    var d=dP.entity_id&&dom(dP.entity_id);
+    w.innerHTML=s?esc(wert(dP,s))+(d==='climate'&&s.s?'<small>'+esc(({heat:'heizt',off:'aus',auto:'auto',cool:'kühlt'})[s.s]||s.s)+'</small>':'')+(s.lc?'<small>seit '+esc(dZeit(s.lc))+'</small>':''):'–';}
+  function dZeit(ms){var d=new Date(ms),h=Date.now()-ms;if(h<36e5)return Math.max(1,Math.round(h/6e4))+' min';if(h<864e5)return Math.round(h/36e5)+' h';return d.toLocaleDateString('de-DE',{day:'numeric',month:'short'});}
+  function dZeichnen(){var g=document.getElementById('dG'),st=document.getElementById('dS');st.innerHTML='';
+    if(!dDaten){g.innerHTML='<div class="leer">'+(dDaten===null?'Verlauf wird geladen …':'Kein Verlauf verfügbar')+'</div>';return;}
+    if(dDaten==='x'||dDaten.length<1){g.innerHTML='<div class="leer">Kein Verlauf vorhanden. Der Recorder von Home Assistant muss das Gerät aufzeichnen.</div>';return;}
+    var now=Date.now(),t0=now-dStd*36e5,W=480,H=150,L=34,R=8,T=8,B=20;
+    var pts=dDaten.map(function(q){return [q[0],q[1]];});
+    var gueltig=pts.filter(function(q){return q[1]!=='unknown'&&q[1]!=='unavailable';});
+    var zahl=gueltig.filter(function(q){var n=parseFloat(q[1]);return isFinite(n)&&String(q[1]).trim()!==''&&!/[a-z]/i.test(String(q[1]));});
+    var x=function(t){return L+(Math.max(t,t0)-t0)/(now-t0)*(W-L-R);};
+    var svg='',ach='';
+    function zeitAchse(){var o='',n=dStd<=6?6:dStd<=24?4:7;for(var i=0;i<=n;i++){var t=t0+(now-t0)*i/n,d=new Date(t);
+      o+='<text class="ax" x="'+x(t)+'" y="'+(H-4)+'" text-anchor="'+(i===0?'start':i===n?'end':'middle')+'">'+(dStd>24?d.toLocaleDateString('de-DE',{weekday:'short'}):('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2))+'</text>';}return o;}
+    if(zahl.length&&zahl.length===gueltig.length){
+      var v=zahl.map(function(q){return [q[0],parseFloat(q[1])];});
+      // auf höchstens 240 Punkte mitteln
+      if(v.length>240){var bk=Math.ceil(v.length/240),w=[];for(var i=0;i<v.length;i+=bk){var sl=v.slice(i,i+bk),sm=0;sl.forEach(function(q){sm+=q[1];});w.push([sl[0][0],sm/sl.length]);}v=w;}
+      var all=zahl.map(function(q){return parseFloat(q[1]);}),mn=Math.min.apply(null,all),mx=Math.max.apply(null,all),av=all.reduce(function(a,b){return a+b;},0)/all.length;
+      var pad=Math.max((mx-mn)*.15,.5),lo=mn-pad,hi=mx+pad,y=function(q){return T+(1-(q-lo)/(hi-lo))*(H-T-B);};
+      var dd=v.map(function(q,i){return (i?'L':'M')+x(q[0]).toFixed(1)+' '+y(q[1]).toFixed(1);}).join(' ');
+      var last=v[v.length-1];dd+=' L'+x(now).toFixed(1)+' '+y(last[1]).toFixed(1);
+      svg+='<path d="'+dd+' L'+x(now).toFixed(1)+' '+(H-B)+' L'+x(v[0][0]).toFixed(1)+' '+(H-B)+' Z" fill="#5eead4" opacity=".12"/><path d="'+dd+'" fill="none" stroke="#5eead4" stroke-width="2" stroke-linejoin="round"/>';
+      [mx,(mx+mn)/2,mn].forEach(function(q){svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(q)+'" y2="'+y(q)+'" stroke="#ffffff14"/><text class="ax" x="'+(L-4)+'" y="'+(y(q)+3)+'" text-anchor="end">'+fmt(q)+'</text>';});
+      var u=(zustand(dP)||{}).u||'';
+      st.innerHTML='<span>Min <b>'+fmt(mn)+(u?' '+esc(u):'')+'</b></span><span>Max <b>'+fmt(mx)+(u?' '+esc(u):'')+'</b></span><span>Ø <b>'+fmt(av)+(u?' '+esc(u):'')+'</b></span>';
+      svg+='<line id="dL" y1="'+T+'" y2="'+(H-B)+'" stroke="#fff" opacity="0"/><circle id="dC" r="4" fill="#5eead4" opacity="0"/><text id="dX2" class="ax" style="fill:var(--fg);font-size:11px" y="'+(T+8)+'"></text>';
+      g.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Verlauf">'+svg+zeitAchse()+'</svg>';
+      var sv=g.firstChild,ln=sv.querySelector('#dL'),ci=sv.querySelector('#dC'),tx=sv.querySelector('#dX2');
+      function zeig(ev){var rc=sv.getBoundingClientRect(),px=(ev.clientX-rc.left)/rc.width*W,t=t0+(px-L)/(W-L-R)*(now-t0),best=v[0];
+        v.forEach(function(q){if(Math.abs(q[0]-t)<Math.abs(best[0]-t))best=q;});
+        var bx=x(best[0]);ln.setAttribute('x1',bx);ln.setAttribute('x2',bx);ln.setAttribute('opacity','.3');ci.setAttribute('cx',bx);ci.setAttribute('cy',y(best[1]));ci.setAttribute('opacity','1');
+        var dt=new Date(best[0]);tx.textContent=fmt(best[1])+(u?' '+u:'')+' · '+(dStd>24?dt.toLocaleDateString('de-DE',{day:'numeric',month:'short'})+' ':'')+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
+        tx.setAttribute('x',Math.min(Math.max(bx,L+60),W-R-60));tx.setAttribute('text-anchor','middle');}
+      sv.addEventListener('pointermove',zeig);sv.addEventListener('pointerdown',zeig);
+      sv.addEventListener('pointerleave',function(){ln.setAttribute('opacity','0');ci.setAttribute('opacity','0');tx.textContent='';});
+    }else{
+      // Zustände (an/aus, offen/zu …) als Treppenkurve mit einer Zeile je Zustand
+      var namen=[];pts.forEach(function(q){if(namen.indexOf(q[1])<0)namen.push(q[1]);});namen=namen.slice(0,5);
+      var zh=(H-T-B)/namen.length,yy=function(n){return T+namen.indexOf(n)*zh+zh/2;};
+      var ZN={on:'an',off:'aus',open:'offen',closed:'zu',unavailable:'weg',unknown:'unbek.',heat:'heizt',idle:'ruht'};
+      namen.forEach(function(n,i){svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy(n)+'" y2="'+yy(n)+'" stroke="#ffffff14"/><text class="ax" x="'+(L-4)+'" y="'+(yy(n)+3)+'" text-anchor="end">'+esc((ZN[n]||n).slice(0,6))+'</text>';});
+      var dd2='',cnt={};
+      pts.forEach(function(q,i){var nx=i<pts.length-1?pts[i+1][0]:now;if(namen.indexOf(q[1])<0)return;
+        svg+='<rect x="'+x(q[0]).toFixed(1)+'" y="'+(yy(q[1])-5)+'" width="'+Math.max(2,x(nx)-x(q[0])).toFixed(1)+'" height="10" rx="3" fill="#5eead4" opacity=".7"/>';
+        if(i&&nx>=t0)cnt[q[1]]=(cnt[q[1]]||0)+1;});
+      st.innerHTML='<span>'+(pts.length-1)+' Wechsel in '+(D_ZEIT.filter(function(z){return z[0]===dStd;})[0][1])+'</span>';
+      g.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Verlauf">'+svg+zeitAchse()+'</svg>';
+    }}
+  document.getElementById('dX').onclick=dZu;
+  (function(){var y0=null;dSheet.addEventListener('touchstart',function(e){y0=e.target.closest('svg')?null:e.touches[0].clientY;},{passive:true});
+    dSheet.addEventListener('touchend',function(e){if(y0!=null&&e.changedTouches[0].clientY-y0>60)dZu();y0=null;},{passive:true});})();
+
   // ---- Nachrichten vom Panel in Home Assistant
   addEventListener('message',function(ev){
     if(!istPanel||ev.source!==window.parent)return;var m=ev.data||{};
@@ -815,6 +904,7 @@ body.schmal #title{left:60px}
       var dd=m.darstellung||{};TINT=dd.temperatur!==false;HIMMEL=dd.himmel!==false;vt=Math.max(0,Math.min(1,(+dd.moebel||0)/100));vg=Math.max(0,Math.min(1,(+dd.glow||0)/100));darstellung();}
     else if(m.type==='raum-entities'){ENT=m.list||[];aufbauen();if(ed)liste();}
     else if(m.type==='raum-punkte'){OVR=m.punkte||{};SZ=m.szenen||{};aufbauen();}
+    else if(m.type==='raum-histdata'){if(m.id===dRq){dDaten=m.serie?(m.serie.length?m.serie:'x'):false;dZeichnen();}}
     else if(m.type==='raum-sky'){SKY=m.himmel||{sonne:null,wetter:null};}
     else if(m.type==='raum-states'){ST=m.v||{};zeichnen();refresh();}
     else if(m.type==='raum-fehler'){hinweis(m.text||'Speichern hat nicht geklappt.');hint.hidden=false;}
@@ -848,7 +938,7 @@ body.schmal #title{left:60px}
     var h=ray.intersectObjects(floors)[0];
     if(h){var rm=h.object.userData.room;focus(rm===cur?null:rm);}else if(cur)focus(null);
   });
-  addEventListener('keydown',function(e){if(e.target&&e.target.tagName==='INPUT')return;if(e.key==='Escape'){if(ed)schliessen();else focus(null);}if(e.key==='ArrowRight'&&cur)step(1);if(e.key==='ArrowLeft'&&cur)step(-1);});
+  addEventListener('keydown',function(e){if(e.target&&e.target.tagName==='INPUT')return;if(e.key==='Escape'){if(!dSheet.hidden){dZu();return;}if(ed)schliessen();else focus(null);}if(e.key==='ArrowRight'&&cur)step(1);if(e.key==='ArrowLeft'&&cur)step(-1);});
 
   var clock=new THREE.Clock(),pv=new THREE.Vector3();
   function resize(){var w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(bloomC){bloomC.setSize(w,h);finalC.setSize(w,h);}}

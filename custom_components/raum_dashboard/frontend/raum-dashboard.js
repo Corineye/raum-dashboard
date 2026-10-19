@@ -140,6 +140,37 @@ class RaumDashboardPanel extends HTMLElement {
     }
   }
 
+  // Verlauf eines Geräts aus dem Recorder (nur für Geräte, die im Plan als Punkt stehen)
+  async _verlauf(m) {
+    const ent = String(m.entity || "");
+    if (!this._gewollt.includes(ent)) return;
+    const std = Math.min(Math.max(+m.stunden || 24, 1), 168);
+    const ende = new Date();
+    const klima = ent.startsWith("climate.");
+    try {
+      const r = await this._hass.callWS({
+        type: "history/history_during_period",
+        start_time: new Date(ende - std * 3600e3).toISOString(),
+        end_time: ende.toISOString(),
+        entity_ids: [ent],
+        include_start_time_state: true,
+        significant_changes_only: false,
+        minimal_response: !klima,
+        no_attributes: !klima,
+      });
+      const serie = [];
+      for (const e of (r && r[ent]) || []) {
+        const t = (typeof e.lu === "number" ? e.lu : Date.parse(e.last_updated) / 1000) * 1000;
+        const v = klima ? (e.a || e.attributes || {}).current_temperature : e.s !== undefined ? e.s : e.state;
+        if (v == null || !isFinite(t)) continue;
+        serie.push([Math.round(t), v]);
+      }
+      this._post({ type: "raum-histdata", id: m.id, serie: serie.slice(-6000) });
+    } catch (e) {
+      this._post({ type: "raum-histdata", id: m.id, serie: null });
+    }
+  }
+
   _nachricht(ev) {
     if (!this._rahmen || ev.source !== this._rahmen.contentWindow) return;
     const m = ev.data;
@@ -164,6 +195,8 @@ class RaumDashboardPanel extends HTMLElement {
       this._gewollt = Array.isArray(m.ids) ? m.ids.filter((x) => typeof x === "string") : [];
       this._zuletzt = "";
       this._senden();
+    } else if (m.type === "raum-hist") {
+      this._verlauf(m);
     } else if (m.type === "raum-call") {
       this._schalten(m);
     } else if (m.type === "raum-save" && ((m.punkte && typeof m.punkte === "object") || (m.szenen && typeof m.szenen === "object"))) {
