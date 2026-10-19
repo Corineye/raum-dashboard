@@ -43,15 +43,24 @@ button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .sens.heizt i{background:#fb923c33;color:#fb923c}
 body.edit .bulb,body.edit .sens{outline:2px dashed #5eead488;outline-offset:2px}
 body.edit canvas{cursor:crosshair}
-#allBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(122px,calc(env(safe-area-inset-top,0px) + 108px));background:var(--panel)}
-#viewBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(166px,calc(env(safe-area-inset-top,0px) + 152px));background:var(--panel)}
+#allBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(138px,calc(env(safe-area-inset-top,0px) + 124px));background:var(--panel)}
+#viewBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(182px,calc(env(safe-area-inset-top,0px) + 168px));background:var(--panel)}
+#skyT{margin-top:1px;white-space:nowrap}
+.warn{position:absolute;left:0;top:0;pointer-events:auto;width:30px;height:30px;padding:0;min-height:0;border-radius:50%;background:#2a1a08e6;border:1px solid #fb923c;color:#fbbf24;font-size:16px;line-height:1;display:grid;place-items:center;margin:-30px 0 0 12px;z-index:2;animation:puls 1.8s ease-in-out infinite}
+@keyframes puls{0%,100%{box-shadow:0 0 0 0 #fb923c66}50%{box-shadow:0 0 0 8px #fb923c00}}
+@media (prefers-reduced-motion:reduce){.warn{animation:none}}
+#szSheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(460px,calc(100% - 28px));padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
+#szSheet label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}
+#szSheet input,#view select{font:inherit;color:var(--fg);background:#0b1111;border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:40px}
+#view select{grid-column:1/-1}
+#ctx .sz{border-color:#5eead455}
 #viewBtn.on{border-color:var(--mint);color:var(--mint)}
 #view{left:max(14px,env(safe-area-inset-left,0px));top:max(212px,calc(env(safe-area-inset-top,0px) + 198px));width:min(280px,calc(100% - 28px));padding:12px 14px;display:flex;flex-direction:column;gap:12px;z-index:6}
 #view label{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:13px}
 #view output{color:var(--mint);font-variant-numeric:tabular-nums;font-size:12px}
 #view input{grid-column:1/-1;width:100%;accent-color:var(--mint);min-height:28px}
 #allBtn.on{border-color:var(--mint);color:var(--mint)}
-#editBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(78px,calc(env(safe-area-inset-top,0px) + 64px));background:var(--panel)}
+#editBtn{position:fixed;z-index:6;left:max(14px,env(safe-area-inset-left,0px));top:max(94px,calc(env(safe-area-inset-top,0px) + 80px));background:var(--panel)}
 #hint{left:50%;transform:translateX(-50%);top:max(14px,env(safe-area-inset-top,0px));max-width:min(460px,calc(100% - 28px));padding:8px 14px;font-size:13px;text-align:center;z-index:6;border-color:#5eead466}
 #sheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 28px));max-height:min(78vh,640px);overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
 #sheet label,#sheet .lab{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}
@@ -73,13 +82,19 @@ body.schmal #title{left:60px}
 <body>
 <div id="stage"></div>
 <div id="pins"></div>
-<div class="chip" id="title"><b>Wohnung</b><span id="sub">Alle Räume</span></div>
+<div class="chip" id="title"><b>Wohnung</b><span id="sub">Alle Räume</span><span id="skyT" hidden></span></div>
 <button type="button" id="editBtn" hidden>✎ Punkte</button>
 <button type="button" id="allBtn" aria-pressed="false">◉ Alle Punkte zeigen</button>
 <button type="button" id="viewBtn" aria-expanded="false" aria-controls="view">◐ Darstellung</button>
 <div class="chip" id="view" hidden>
   <label>Möbel durchsichtig <output id="vtO">0 %</output><input type="range" id="vtR" min="0" max="100" value="0"></label>
   <label>Outlines leuchten <output id="vgO">0 %</output><input type="range" id="vgR" min="0" max="100" value="0"></label>
+  <label>Tageszeit testen <output id="vhO">live</output><input type="range" id="vhR" min="0" max="25" step="0.25" value="25"></label>
+  <label>Wetter testen <select id="vwS"><option value="">live</option><option value="sunny">Sonnig</option><option value="partlycloudy">Wolkig</option><option value="cloudy">Bewölkt</option><option value="rainy">Regen</option><option value="snowy">Schnee</option></select></label>
+</div>
+<div class="chip" id="szSheet" role="dialog" aria-label="Szene speichern" hidden>
+  <label>Name der Szene (speichert, welche Lampen und Schalter jetzt an und aus sind)<input id="szName" maxlength="40" autocomplete="off" placeholder="z. B. Fernsehabend"></label>
+  <div class="row"><button type="button" id="szX">Abbrechen</button><span class="sp"></span><button type="button" id="szOk" class="on">Speichern</button></div>
 </div>
 <div class="chip" id="hint" role="status" hidden></div>
 <div class="chip" id="sheet" role="dialog" aria-labelledby="shT" hidden>
@@ -128,7 +143,7 @@ body.schmal #title{left:60px}
   var canvas=renderer.domElement;
   var scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1111);
   var camera=new THREE.PerspectiveCamera(40,1,.1,200);
-  scene.add(new THREE.HemisphereLight(0xcfe9ff,0x1a2523,.85));
+  var hemi0=new THREE.HemisphereLight(0xcfe9ff,0x1a2523,.85);scene.add(hemi0);
   var dl=new THREE.DirectionalLight(0xffffff,.7);dl.position.set(-4,10,3);scene.add(dl);
   // Detailliertes Arbeitszimmer (aus arbeitszimmer-3d.html), 3,0 x 4,2 m, Tür vorn (z=0), Fenster hinten (z=4,2)
   // Küche (IKEA Enhet, Malm, Besta) nach Fotos und Küchenplan; u quer (0 = Malm-Wand Ost), v ab Fensterwand (0) bis Türwand (3,0)
@@ -690,6 +705,7 @@ body.schmal #title{left:60px}
       el.title=(p.name||'Punkt')+(p.entity_id?' · '+p.entity_id:' · noch kein Gerät verbunden');
       el.setAttribute('aria-label',(p.name||'Punkt')+(p.rund?' schalten':''));
     });
+    tempUpdate();warnZeigen();
   }
   function schalten(ps,an){
     var ids=[];ps.forEach(function(p){if(!schaltbar(p))return;if(p.entity_id){ids.push(p.entity_id);var s=ST[p.entity_id];if(s)s.on=an;}else p.sim=an;});
@@ -716,7 +732,9 @@ body.schmal #title{left:60px}
     ctx.innerHTML='';
     if(!cur){
       var lichter=PTS.filter(istLicht),an=lichter.filter(istAn);
-      var s=document.createElement('span');s.className='stat';s.textContent=an.length+' von '+lichter.length+' Lichtern an';ctx.appendChild(s);
+      var s=document.createElement('span');s.className='stat';s.textContent=an.length+' von '+lichter.length+' Lichtern an'+(WARNS.length?' · ⚠ '+WARNS.length+(WARNS.length===1?' Warnung':' Warnungen'):'');ctx.appendChild(s);
+      Object.keys(SZ).forEach(function(k){var sz=SZ[k];ctx.appendChild(mkBtn(edit?'✕ '+sz.name:sz.name,function(){if(edit){delete SZ[k];szSpeichern();refresh();}else szeneAnwenden(sz);},'sz',edit?'Szene '+sz.name+' löschen':'Szene '+sz.name));});
+      if(admin)ctx.appendChild(mkBtn('＋ Szene',szNeu,'','Aktuellen Zustand als Szene speichern'));
       var sp=document.createElement('span');sp.className='sp';ctx.appendChild(sp);
       ctx.appendChild(mkBtn('Alles aus',function(){schalten(an,false);}));
     }else{
@@ -794,9 +812,10 @@ body.schmal #title{left:60px}
     if(!istPanel||ev.source!==window.parent)return;var m=ev.data||{};
     if(m.type==='raum-init'){admin=!!m.admin;editBtn.hidden=!admin;
       // In Home Assistant kommen die Werte aus den Integrations-Einstellungen (Konfigurieren), nicht aus der Seite
-      var dd=m.darstellung||{};vt=Math.max(0,Math.min(1,(+dd.moebel||0)/100));vg=Math.max(0,Math.min(1,(+dd.glow||0)/100));darstellung();}
+      var dd=m.darstellung||{};TINT=dd.temperatur!==false;HIMMEL=dd.himmel!==false;vt=Math.max(0,Math.min(1,(+dd.moebel||0)/100));vg=Math.max(0,Math.min(1,(+dd.glow||0)/100));darstellung();}
     else if(m.type==='raum-entities'){ENT=m.list||[];aufbauen();if(ed)liste();}
-    else if(m.type==='raum-punkte'){OVR=m.punkte||{};aufbauen();}
+    else if(m.type==='raum-punkte'){OVR=m.punkte||{};SZ=m.szenen||{};aufbauen();}
+    else if(m.type==='raum-sky'){SKY=m.himmel||{sonne:null,wetter:null};}
     else if(m.type==='raum-states'){ST=m.v||{};zeichnen();refresh();}
     else if(m.type==='raum-fehler'){hinweis(m.text||'Speichern hat nicht geklappt.');hint.hidden=false;}
   });
@@ -843,9 +862,9 @@ body.schmal #title{left:60px}
     ctl.update();
     ROOMS.forEach(function(r){
       var want=lampsOn(r)?1:0;r.k+=(want-r.k)*Math.min(1,dt*4);
-      r.light.intensity=r.k*.45;
+      r.light.intensity=r.k*.45*(r.nacht||1);
       var dim=cur&&cur!==r;
-      r.floorMats.forEach(function(m){m.color.copy(r.base).lerp(r.lit,r.k);m.opacity+=((dim?.55:1)-m.opacity)*Math.min(1,dt*6);});
+      r.floorMats.forEach(function(m){m.color.copy(r.base).lerp(r.lit,r.k);if(TINT&&r.tempC!=null)m.color.lerp(tempFarbe(r.tempC,tmpC).multiplyScalar(.7),.5);m.opacity+=((dim?.55:1)-m.opacity)*Math.min(1,dt*6);});
     });
     var GR={wz:wzGrp,az:azGrp,fl:flGrp,sz:szGrp,bd:bdGrp,ku:kuGrp},cid=cur?(cur.id==='ez'?'wz':cur.id):null;for(var gk in GR)GR[gk].visible=!cid||gk===cid;
     // Lampen im Modell leuchten, wenn ihr Punkt an ist (gelöschte Punkte bleiben aus)
@@ -861,6 +880,8 @@ body.schmal #title{left:60px}
     // Ausgezoomt sieht man keine Punkte. Sie erscheinen, sobald man einen Raum öffnet (oder „Alle Punkte zeigen“ wählt)
     PTS.forEach(function(p){var fremd=cur&&cur.id!==p.raum&&!(cur.id==='wz'&&p.raum==='ez')&&!(cur.id==='ez'&&p.raum==='wz');
       place(p.el,p.v,!(edit||allePunkte||(cur&&!fremd)));p.el.style.opacity=fremd?.35:1;});
+    WARNS.forEach(function(w){place(w.el,w.p.v,false);});
+    himmel(dt);
     zeichneSzene();requestAnimationFrame(frame);
   }
   // ---- Darstellung: Möbel durchsichtig, Outlines leuchten (Bloom nur auf den Linien)
@@ -914,6 +935,102 @@ body.schmal #title{left:60px}
   if(istPanel){viewBtn.hidden=true;viewEl.hidden=true;}
   else try{var d0=JSON.parse(localStorage.getItem('raum-darstellung')||'null');if(d0){vt=Math.max(0,Math.min(1,+d0.vt||0));vg=Math.max(0,Math.min(1,+d0.vg||0));vtR.value=vt*100;vgR.value=vg*100;}}catch(e){}
   if(vt>0||vg>0)darstellung();
+
+  // ---- Temperatur-Farben, Warnsymbole, Szenen, Himmel
+  var TINT=true,HIMMEL=true,SKY={sonne:null,wetter:null},SZ={},WARNS=[],WARNEL={};
+  var TSTOPS=[[15,new THREE.Color(0x3b82f6)],[19,new THREE.Color(0x22d3ee)],[21,new THREE.Color(0x4ade80)],[23,new THREE.Color(0xfacc15)],[26,new THREE.Color(0xf97316)]];
+  function tempFarbe(t,out){
+    if(t<=TSTOPS[0][0])return out.copy(TSTOPS[0][1]);
+    for(var i=1;i<TSTOPS.length;i++)if(t<=TSTOPS[i][0])return out.copy(TSTOPS[i-1][1]).lerp(TSTOPS[i][1],(t-TSTOPS[i-1][0])/(TSTOPS[i][0]-TSTOPS[i-1][0]));
+    return out.copy(TSTOPS[TSTOPS.length-1][1]);}
+  function gleich(a,b){if(a===b)return true;var ra=ROOMS.filter(function(x){return x.id===a})[0],rb=ROOMS.filter(function(x){return x.id===b})[0];return !!(ra&&rb&&ra.grp&&ra.grp===rb.grp);}
+  // Raumtemperatur: Mittel aus den Temperatursensoren und Heizungen, die als Punkt im Raum stehen
+  function raumTemp(r){var sum=0,n=0;
+    PTS.forEach(function(p){if(!p.entity_id||!gleich(p.raum,r.id))return;var s=ST[p.entity_id];if(!s||s.s==='unavailable'||s.s==='unknown')return;var t=NaN,d=dom(p.entity_id);
+      if(d==='climate')t=s.ist;else if(d==='sensor'&&(s.dc==='temperature'||(p.symbol==='temp'&&/°/.test(s.u||''))))t=parseFloat(s.s);
+      if(typeof t==='number'&&isFinite(t)){sum+=t;n++;}});
+    return n?sum/n:null;}
+  function tempUpdate(){ROOMS.forEach(function(r){r.tempC=raumTemp(r);r.lbl.textContent=r.n+(r.tempC!=null?' · '+fmt(r.tempC)+'°':'');});}
+
+  // Warnungen: Fenster offen bei laufender Heizung, Kühl-/Gefrierschranktür lange offen, Gerät nicht erreichbar
+  function warnungen(){
+    var L=[],jetzt=Date.now();
+    PTS.forEach(function(p){var s=p.entity_id?ST[p.entity_id]:null;if(!s)return;
+      var sym=p.symbol||autoSym(p.entity_id,s),nm=p.name||s.n;
+      if(s.s==='unavailable'){L.push({k:'u'+p.id,p:p,t:nm+' ist nicht erreichbar'});return;}
+      if(sym==='fenster'&&s.s==='on'&&PTS.some(function(q){var qs=q.entity_id?ST[q.entity_id]:null;return qs&&qs.aktion==='heating'&&gleich(q.raum,p.raum);}))
+        L.push({k:'f'+p.id,p:p,t:nm+' ist offen und die Heizung heizt'});
+      if(sym==='tuer'&&s.s==='on'&&/k[üu]e?hl|gefrier|tiefk/i.test(nm)&&s.lc&&jetzt-s.lc>180000)
+        L.push({k:'t'+p.id,p:p,t:nm+' seit '+Math.round((jetzt-s.lc)/60000)+' min offen'});});
+    return L;}
+  function warnZeigen(){
+    var L=warnungen(),keep={};
+    L.forEach(function(w){keep[w.k]=1;var el=WARNEL[w.k];
+      if(!el){el=WARNEL[w.k]=document.createElement('button');el.type='button';el.className='warn';el.textContent='⚠';pinsEl.appendChild(el);}
+      el.title=w.t;el.setAttribute('aria-label','Warnung: '+w.t);
+      el.onclick=function(){var r=ROOMS.filter(function(x){return gleich(x.id,w.p.raum)})[0];if(r&&cur!==r)focus(r);hinweis(w.t);hint.hidden=false;setTimeout(function(){if(!edit&&!wartet)hinweis('');},4000);};w.el=el;});
+    Object.keys(WARNEL).forEach(function(k){if(!keep[k]){WARNEL[k].remove();delete WARNEL[k];}});
+    var alt=WARNS.length;WARNS=L;if(alt!==L.length)refresh();
+  }
+  setInterval(function(){zeichnen();},30000);
+
+  // Szenen: merken sich, welche Punkte an und aus sind
+  var szSheet=document.getElementById('szSheet'),szName=document.getElementById('szName');
+  function szeneAnwenden(sz){var an=[],aus=[];
+    PTS.forEach(function(p){if(!schaltbar(p))return;if(sz.an.indexOf(p.id)>=0)an.push(p);else if(sz.aus.indexOf(p.id)>=0)aus.push(p);});
+    schalten(an,true);schalten(aus,false);}
+  function szSpeichern(){if(istPanel)senden({type:'raum-save',szenen:SZ});else try{localStorage.setItem('raum-szenen',JSON.stringify(SZ));}catch(e){}}
+  function szNeu(){szSheet.hidden=false;dock.hidden=true;szName.value='';szName.focus();}
+  function szZu(){szSheet.hidden=true;dock.hidden=false;}
+  document.getElementById('szOk').onclick=function(){var n=szName.value.trim().slice(0,40);if(!n)return;
+    var an=[],aus=[];PTS.forEach(function(p){if(!schaltbar(p))return;(istAn(p)?an:aus).push(p.id);});
+    SZ['s'+Date.now().toString(36)]={name:n,an:an,aus:aus};szSpeichern();szZu();refresh();};
+  document.getElementById('szX').onclick=szZu;
+  szName.onkeydown=function(e){if(e.key==='Enter')document.getElementById('szOk').click();if(e.key==='Escape')szZu();};
+  if(!istPanel)try{SZ=JSON.parse(localStorage.getItem('raum-szenen')||'{}')||{};}catch(e){SZ={};}
+
+  // Himmel: Sonnenstand und Wetter aus Home Assistant (sun.sun, weather.*), sonst die Uhrzeit
+  var hemi=hemi0,SUNDIR=new THREE.Vector3(),tmpC=new THREE.Color(),bgTag=new THREE.Color();
+  var NACHT=new THREE.Color(0x060a0c),TAG=new THREE.Color(0x14282a),DAEMMER=new THREE.Color(0x24181a),WARM=new THREE.Color(0xffb070),WEISS=new THREE.Color(0xffffff),MOND=new THREE.Color(0x8aa6ff);
+  var WETTER={sunny:['☀','Sonnig',1,1],'clear-night':['☾','Klare Nacht',1,1],partlycloudy:['⛅','Wolkig',.8,.95],cloudy:['☁','Bewölkt',.45,.85],fog:['☁','Nebel',.3,.8],
+    rainy:['☂','Regen',.3,.8],pouring:['☂','Starkregen',.2,.75],lightning:['☂','Gewitter',.25,.75],'lightning-rainy':['☂','Gewitter',.25,.75],snowy:['❄','Schnee',.4,.85],'snowy-rainy':['❄','Schneeregen',.3,.8],hail:['☂','Hagel',.3,.8],windy:['☁','Windig',.7,.95],exceptional:['☁','',.5,.85]};
+  var vhR=document.getElementById('vhR'),vwS=document.getElementById('vwS'),skyT=document.getElementById('skyT');
+  function himmelWerte(){
+    var jetzt=new Date(),h=jetzt.getHours()+jetzt.getMinutes()/60,test=false;
+    if(vhR&&+vhR.value<25){h=+vhR.value;test=true;}
+    var el,az;
+    if(SKY.sonne&&!test){el=SKY.sonne.el;az=SKY.sonne.az;}
+    else{el=Math.max(-30,45*Math.sin(Math.PI*(h-6)/12));az=(90+(h-6)*15+360)%360;}
+    var cond=vwS&&vwS.value?vwS.value:(SKY.wetter?SKY.wetter.zustand:null);
+    return {el:el,az:az,h:h,cond:cond,temp:SKY.wetter&&!test?SKY.wetter.temp:null,einheit:SKY.wetter?SKY.wetter.einheit:'°C'};}
+  function sm(a,b,x){var t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);}
+  var regen=null,schnee=null;
+  (function(){var N=240,pos=new Float32Array(N*6);for(var i=0;i<N;i++){var x=-1+Math.random()*(W+2),z=-2+Math.random()*(Dp+3),y=Math.random()*7;pos.set([x,y,z,x-.02,y-.28,z],i*6);}
+    var g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    regen=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0x8fc4ff,transparent:true,opacity:.35}));regen.visible=false;regen.frustumCulled=false;scene.add(regen);
+    var M=160,p2=new Float32Array(M*3);for(var j=0;j<M;j++)p2.set([-1+Math.random()*(W+2),Math.random()*7,-2+Math.random()*(Dp+3)],j*3);
+    var g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.BufferAttribute(p2,3));
+    schnee=new THREE.Points(g2,new THREE.PointsMaterial({color:0xffffff,size:.07,transparent:true,opacity:.8}));schnee.visible=false;schnee.frustumCulled=false;scene.add(schnee);})();
+  function wetterBewegen(dt,cond){
+    var r=/rainy|pouring|lightning|hail/.test(cond||'')&&cond!=='snowy-rainy',s=/snowy/.test(cond||'');
+    regen.visible=r;schnee.visible=s;
+    if(r){var a=regen.geometry.attributes.position.array;for(var i=0;i<a.length;i+=6){var d=dt*7;a[i+1]-=d;a[i+4]-=d;if(a[i+1]<0){a[i+1]=7;a[i+4]=6.72;}}regen.geometry.attributes.position.needsUpdate=true;}
+    if(s){var b=schnee.geometry.attributes.position.array;for(var j=0;j<b.length;j+=3){b[j+1]-=dt*.9;b[j]+=Math.sin(b[j+1]*2+j)*dt*.15;if(b[j+1]<0)b[j+1]=7;}schnee.geometry.attributes.position.needsUpdate=true;}}
+  var himmelT=0;
+  function himmel(dt){
+    if(!HIMMEL){hemi.intensity=.85;dl.intensity=.7;dl.color.set(0xffffff);dl.position.set(-4,10,3);scene.background.set(0x0b1111);regen.visible=schnee.visible=false;skyT.hidden=true;ROOMS.forEach(function(r){r.nacht=1;});return;}
+    var v=himmelWerte(),wd=WETTER[v.cond]||null,d=sm(-6,12,v.el),sonne=wd?wd[2]:1,dimm=wd?wd[3]:1;
+    hemi.intensity=(.3+.55*d)*dimm;
+    dl.intensity=(.06+.64*d)*sonne;
+    var e=v.el*Math.PI/180,a=v.az*Math.PI/180,eh=Math.max(e,.3);
+    SUNDIR.set(Math.sin(a)*Math.cos(eh),Math.sin(eh),-Math.cos(a)*Math.cos(eh));dl.position.copy(OV_TGT).addScaledVector(SUNDIR,12);
+    dl.color.copy(MOND).lerp(WARM,sm(-8,2,v.el)).lerp(WEISS,sm(2,22,v.el));
+    bgTag.copy(NACHT).lerp(DAEMMER,sm(-12,-2,v.el)*(1-sm(0,10,v.el))).lerp(TAG,d);scene.background.copy(bgTag);
+    ROOMS.forEach(function(r){r.nacht=1+(1-d)*1.1;});
+    wetterBewegen(dt,v.cond);
+    var hh=Math.floor(v.h),mm=Math.round((v.h-hh)*60);if(mm===60){hh=(hh+1)%24;mm=0;}
+    skyT.hidden=false;skyT.textContent=(wd?wd[0]:(v.el>0?'☀':'☾'))+' '+('0'+hh).slice(-2)+':'+('0'+mm).slice(-2)+(wd&&wd[1]?' · '+wd[1]:'')+(v.temp!=null?' · '+fmt(v.temp)+' '+v.einheit:'');}
+  [vhR,vwS].forEach(function(el){if(!el)return;el.oninput=function(){var o=document.getElementById('vhO');if(o)o.textContent=+vhR.value<25?('0'+Math.floor(vhR.value)).slice(-2)+':'+('0'+Math.round((vhR.value%1)*60)).slice(-2):'live';};});
   aufbauen();frame();
   senden({type:'raum-ready'});
 })();

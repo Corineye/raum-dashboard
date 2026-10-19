@@ -17,11 +17,15 @@
         "description": "Applies after the next reload of the “Räume” page.",
         "data": {
           "moebel_durchsichtig": "Furniture transparency",
-          "outlines_leuchten": "Outline glow"
+          "outlines_leuchten": "Outline glow",
+          "temperatur_farben": "Tint rooms by temperature",
+          "himmel_nach_zeit": "Light and sky by time of day and weather"
         },
         "data_description": {
           "moebel_durchsichtig": "0 % = fully visible, 100 % = almost invisible. Walls and floors stay.",
-          "outlines_leuchten": "0 % = off. Higher values make the edges glow and need a bit more rendering power."
+          "outlines_leuchten": "0 % = off. Higher values make the edges glow and need a bit more rendering power.",
+          "temperatur_farben": "Each room floor turns blue when colder and orange when warmer, if a temperature sensor is placed there as a point.",
+          "himmel_nach_zeit": "Sun position from sun.sun, weather from the first weather entity. Without them the clock is used."
         }
       }
     }

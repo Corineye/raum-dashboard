@@ -16,7 +16,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, OPT_GLOW, OPT_MOEBEL, PANEL_PFAD, STANDARD_PROZENT, URL_BASIS
+from .const import DOMAIN, OPT_GLOW, OPT_HIMMEL, OPT_MOEBEL, OPT_TEMPERATUR, PANEL_PFAD, STANDARD_PROZENT, URL_BASIS
 from .punkte import async_registrieren
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +53,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "darstellung": {
                 "moebel": entry.options.get(OPT_MOEBEL, STANDARD_PROZENT),
                 "glow": entry.options.get(OPT_GLOW, STANDARD_PROZENT),
+                "temperatur": entry.options.get(OPT_TEMPERATUR, True),
+                "himmel": entry.options.get(OPT_HIMMEL, True),
             },
         },
     )

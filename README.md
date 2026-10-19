@@ -26,10 +26,13 @@ Die Punkte speichert die Integration in Home Assistant (`.storage/raum_dashboard
 
 ## Darstellung
 
-Einstellungen › Geräte & Dienste › Raum-Dashboard › **Konfigurieren**: zwei Regler.
+Einstellungen › Geräte & Dienste › Raum-Dashboard › **Konfigurieren**: zwei Regler und zwei Schalter.
 
 - **Möbel durchsichtig** (0–100 %): macht die Möbel durchsichtig, Wände und Böden bleiben.
 - **Outlines leuchten** (0–100 %): lässt die Kanten leuchten. Braucht etwas mehr Rechenleistung, solange der Wert über 0 steht.
+
+- **Temperatur-Farben**: der Boden jedes Raums färbt sich von blau (kalt) über grün bis orange (warm), die Raumtemperatur steht am Namen. Nutzt Klima- und Temperatursensor-Punkte im Raum.
+- **Himmel nach Zeit und Wetter**: Licht und Hintergrund folgen `sun.sun`, Regen und Schnee kommen aus der ersten `weather`-Entität. Ohne diese Entitäten wird die Uhrzeit benutzt.
 
 Nach dem Speichern die Seite „Räume“ einmal neu laden.
 
@@ -44,3 +47,8 @@ Raum antippen zoomt hinein, denselben Raum nochmal antippen zoomt wieder heraus.
 ## Gerätenamen
 
 Die Lampen und Sensoren im Arbeitszimmer sowie Robi werden beim ersten Öffnen über ihren Anzeigenamen gefunden (`frontend/wohnung.html`, Block `HINT`). Alles andere verbindest du selbst über **✎ Punkte**.
+
+## Warnungen und Szenen
+
+- **Warnsymbole** erscheinen im Raum: Fenster offen, während geheizt wird; Kühl- oder Gefrierschrank-Tür länger als 3 Minuten offen (Name enthält „Kühl“, „Gefrier“ oder „Tief“); Gerät nicht erreichbar. Die Anzahl steht unten im Dock.
+- **Szenen**: unten „＋ Szene“ (nur Administratoren) speichert, welche Lampen und Schalter gerade an und aus sind. Antippen stellt sie wieder her. Im Bearbeiten-Modus löscht „✕ Name“ eine Szene. Gespeichert in Home Assistant, auf allen Geräten gleich.

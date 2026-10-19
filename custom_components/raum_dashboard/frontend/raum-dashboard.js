@@ -87,7 +87,7 @@ class RaumDashboardPanel extends HTMLElement {
       const s = h.states[id];
       if (!s) continue;
       const a = s.attributes || {};
-      const o = { s: s.state, n: a.friendly_name || id, u: a.unit_of_measurement || null, dc: a.device_class || null };
+      const o = { s: s.state, n: a.friendly_name || id, u: a.unit_of_measurement || null, dc: a.device_class || null, lc: Date.parse(s.last_changed) || 0 };
       if (SCHALTBAR.includes(id.split(".")[0])) o.on = s.state === "on";
       if (id.startsWith("climate.")) Object.assign(o, { ist: a.current_temperature, soll: a.temperature, aktion: a.hvac_action || null });
       v[id] = o;
@@ -98,6 +98,7 @@ class RaumDashboardPanel extends HTMLElement {
   _senden() {
     if (!this._bereit || !this._hass) return;
     this._geraete();
+    this._himmel();
     const v = this._zustaende();
     const text = JSON.stringify(v);
     if (text === this._zuletzt) return;
@@ -105,18 +106,34 @@ class RaumDashboardPanel extends HTMLElement {
     this._post({ type: "raum-states", v });
   }
 
+  // Sonnenstand (sun.sun) und Wetter (erste weather-Entität) für den Himmel im Plan
+  _himmel() {
+    const h = this._hass;
+    const sun = h.states["sun.sun"];
+    const wid = Object.keys(h.states).filter((id) => id.startsWith("weather.")).sort()[0];
+    const w = wid ? h.states[wid] : null;
+    const himmel = {
+      sonne: sun && sun.attributes && sun.attributes.elevation != null ? { el: sun.attributes.elevation, az: sun.attributes.azimuth } : null,
+      wetter: w ? { zustand: w.state, temp: w.attributes.temperature != null ? w.attributes.temperature : null, einheit: w.attributes.temperature_unit || "°C" } : null,
+    };
+    const text = JSON.stringify(himmel);
+    if (text === this._himmelText) return;
+    this._himmelText = text;
+    this._post({ type: "raum-sky", himmel });
+  }
+
   async _punkteLaden() {
     try {
       const r = await this._hass.callWS({ type: `${DOMAIN}/punkte` });
-      this._post({ type: "raum-punkte", punkte: r.punkte || {} });
+      this._post({ type: "raum-punkte", punkte: r.punkte || {}, szenen: r.szenen || {} });
     } catch (e) {
       this._post({ type: "raum-fehler", text: "Punkte konnten nicht geladen werden. Ist die Integration aktuell und Home Assistant neu gestartet?" });
     }
   }
 
-  async _punkteSpeichern(punkte) {
+  async _punkteSpeichern(daten) {
     try {
-      await this._hass.callWS({ type: `${DOMAIN}/punkte/speichern`, punkte });
+      await this._hass.callWS({ type: `${DOMAIN}/punkte/speichern`, ...daten });
     } catch (e) {
       this._post({ type: "raum-fehler", text: "Speichern hat nicht geklappt: " + ((e && e.message) || "unbekannter Fehler") });
       this._punkteLaden();
@@ -131,6 +148,7 @@ class RaumDashboardPanel extends HTMLElement {
       this._bereit = true;
       this._zuletzt = "";
       this._anzahl = -1;
+      this._himmelText = "";
       const admin = !!(this._hass.user && this._hass.user.is_admin);
       this._post({ type: "raum-init", admin, darstellung: (this._konf && this._konf.darstellung) || null });
       this._senden();
@@ -148,8 +166,11 @@ class RaumDashboardPanel extends HTMLElement {
       this._senden();
     } else if (m.type === "raum-call") {
       this._schalten(m);
-    } else if (m.type === "raum-save" && m.punkte && typeof m.punkte === "object") {
-      this._punkteSpeichern(m.punkte);
+    } else if (m.type === "raum-save" && ((m.punkte && typeof m.punkte === "object") || (m.szenen && typeof m.szenen === "object"))) {
+      const daten = {};
+      if (m.punkte && typeof m.punkte === "object") daten.punkte = m.punkte;
+      if (m.szenen && typeof m.szenen === "object") daten.szenen = m.szenen;
+      this._punkteSpeichern(daten);
     }
   }
 
