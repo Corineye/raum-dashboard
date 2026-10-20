@@ -99,6 +99,7 @@ class RaumDashboardPanel extends HTMLElement {
     if (!this._bereit || !this._hass) return;
     this._geraete();
     this._himmel();
+    this._drucker();
     const v = this._zustaende();
     const text = JSON.stringify(v);
     if (text === this._zuletzt) return;
@@ -114,12 +115,72 @@ class RaumDashboardPanel extends HTMLElement {
     const w = wid ? h.states[wid] : null;
     const himmel = {
       sonne: sun && sun.attributes && sun.attributes.elevation != null ? { el: sun.attributes.elevation, az: sun.attributes.azimuth } : null,
-      wetter: w ? { zustand: w.state, temp: w.attributes.temperature != null ? w.attributes.temperature : null, einheit: w.attributes.temperature_unit || "°C" } : null,
+      wetter: w
+        ? {
+            zustand: w.state,
+            temp: w.attributes.temperature != null ? w.attributes.temperature : null,
+            feuchte: w.attributes.humidity != null ? w.attributes.humidity : null,
+            einheit: w.attributes.temperature_unit || "°C",
+          }
+        : null,
     };
     const text = JSON.stringify(himmel);
     if (text === this._himmelText) return;
     this._himmelText = text;
     this._post({ type: "raum-sky", himmel });
+  }
+
+  // Bambu-Lab-Drucker: die Entitäten des Druckers werden über den Namen gefunden („… Druckstatus“ / „… Print status“)
+  _drucker() {
+    const h = this._hass;
+    const ids = Object.keys(h.states);
+    let basis = null;
+    for (const id of ids) {
+      if (!id.startsWith("sensor.")) continue;
+      const n = String((h.states[id].attributes || {}).friendly_name || "").toLowerCase();
+      const m = n.match(/^(.*) (druckstatus|print status)$/);
+      if (m) {
+        basis = m[1] + " ";
+        break;
+      }
+    }
+    let d = null;
+    if (basis) {
+      const FELD = {
+        status: ["druckstatus", "print status"],
+        fortschritt: ["druckfortschritt", "print progress"],
+        rest: ["verbleibende zeit", "remaining time"],
+        duese: ["temperatur der düse", "nozzle temperature"],
+        duese_ziel: ["zieltemperatur der düse", "target nozzle temperature"],
+        bett: ["druckbetttemperatur", "bed temperature"],
+        bett_ziel: ["zieltemperatur vom druckbett", "target bed temperature"],
+        aufgabe: ["name der aufgabe", "task name"],
+        schicht: ["aktuelle schicht", "current layer"],
+        schichten: ["gesamtzahl der schichten", "total layer count"],
+        ende: ["endzeit", "end time"],
+        fehler: ["druckfehler", "print error"],
+        online: ["online"],
+      };
+      d = {};
+      for (const id of ids) {
+        const dom = id.split(".")[0];
+        if (dom !== "sensor" && dom !== "binary_sensor") continue;
+        const st = h.states[id];
+        const n = String((st.attributes || {}).friendly_name || "").toLowerCase();
+        if (!n.startsWith(basis)) continue;
+        const rest = n.slice(basis.length);
+        for (const k of Object.keys(FELD)) {
+          if (!FELD[k].includes(rest)) continue;
+          if ((k === "fehler" || k === "online") !== (dom === "binary_sensor")) continue;
+          d[k] = k === "fehler" || k === "online" ? st.state === "on" : st.state;
+        }
+      }
+      if (d.status === undefined) d = null;
+    }
+    const text = JSON.stringify(d);
+    if (text === this._druckerText) return;
+    this._druckerText = text;
+    this._post({ type: "raum-drucker", drucker: d });
   }
 
   async _punkteLaden() {
@@ -180,6 +241,7 @@ class RaumDashboardPanel extends HTMLElement {
       this._zuletzt = "";
       this._anzahl = -1;
       this._himmelText = "";
+      this._druckerText = "";
       const admin = !!(this._hass.user && this._hass.user.is_admin);
       this._post({ type: "raum-init", admin, darstellung: (this._konf && this._konf.darstellung) || null });
       this._senden();

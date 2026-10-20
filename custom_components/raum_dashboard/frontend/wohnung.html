@@ -48,6 +48,16 @@ body.edit canvas{cursor:crosshair}
 #skyT{margin-top:1px;white-space:nowrap}
 .warn{position:absolute;left:0;top:0;pointer-events:auto;width:30px;height:30px;padding:0;min-height:0;border-radius:50%;background:#2a1a08e6;border:1px solid #fb923c;color:#fbbf24;font-size:16px;line-height:1;display:grid;place-items:center;margin:-30px 0 0 12px;z-index:2;animation:puls 1.8s ease-in-out infinite}
 @keyframes puls{0%,100%{box-shadow:0 0 0 0 #fb923c66}50%{box-shadow:0 0 0 8px #fb923c00}}
+.warn.luft{background:#0b2226e6;border-color:#5eead4;color:#5eead4;font-size:15px}
+.sens.druckt{border-color:var(--mint);box-shadow:0 0 14px #5eead466}
+.sens.fehler{border-color:#f87171;box-shadow:0 0 14px #f8717188}
+#dG{display:flex;flex-direction:column;gap:10px}
+#dSheet .pbar{height:10px;border-radius:6px;background:#ffffff14;overflow:hidden}
+#dSheet .pbar i{display:block;height:100%;background:var(--mint);border-radius:6px;transition:width .6s}
+#dSheet .raster{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+#dSheet .raster div{background:#ffffff0a;border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)}
+#dSheet .raster b{display:block;color:var(--fg);font-size:16px;font-weight:500}
+#dSheet .raster small{color:var(--muted);font-size:11px}
 @media (prefers-reduced-motion:reduce){.warn{animation:none}}
 #szSheet{left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(460px,calc(100% - 28px));padding:14px;display:flex;flex-direction:column;gap:10px;z-index:7}
 #szSheet label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}
@@ -670,7 +680,7 @@ body.schmal #title{left:60px}
    ['heizung','Heizung','heizung',1.2,4.1,.6],['drucker','3D-Drucker','drucker',2.76,.66,1.75]].forEach(function(a){
     var q=AZP(a[3],a[4]);DEF.push({id:'az.'+a[0],raum:'az',x:q[0],y:a[5],z:q[1],name:a[1],symbol:a[2]});});
 
-  var istPanel=window.parent!==window,admin=!istPanel,OVR={},PTS=[],ENT=[],ST={},GEWOLLT='';
+  var istPanel=window.parent!==window,admin=!istPanel,OVR={},PTS=[],ENT=[],ST={},GEWOLLT='',PRN=null;
   function senden(m){if(istPanel)window.parent.postMessage(m,'*');}
   function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function dom(e){return e?e.split('.')[0]:'';}
@@ -684,7 +694,7 @@ body.schmal #title{left:60px}
     if(dc==='window')return 'fenster';if(dc==='door'||dc==='opening')return 'tuer';if(dc==='motion'||dc==='occupancy'||dc==='presence')return 'bewegung';return 'punkt';}
   function zustand(p){return p.entity_id?ST[p.entity_id]:null;}
   // Ohne Home Assistant (Vorschau im Browser) schalten die Lampen aus dem Plan nur zum Ausprobieren
-  function schaltbar(p){return p.entity_id?SCHALTBAR.indexOf(dom(p.entity_id))>=0:(!istPanel&&!!p.lampe);}
+  function schaltbar(p){if(p.symbol==='drucker')return false;return p.entity_id?SCHALTBAR.indexOf(dom(p.entity_id))>=0:(!istPanel&&!!p.lampe);}
   function istAn(p){if(!p.entity_id)return !istPanel&&!!p.sim;var s=ST[p.entity_id];return !!(s&&s.on);}
   function istLicht(p){return p.entity_id?dom(p.entity_id)==='light':(!istPanel&&!!p.lampe);}
   function wert(p,s){
@@ -711,13 +721,23 @@ body.schmal #title{left:60px}
     var t=ids.sort().join(',');if(t!==GEWOLLT){GEWOLLT=t;senden({type:'raum-want',ids:ids});}
     zeichnen();refresh();
   }
+  // Drucker: Status aus den Bambu-Entitäten (kommt vom Panel als raum-drucker)
+  var DR_STATUS={idle:'bereit',running:'druckt',pause:'pausiert',prepare:'bereitet vor',finish:'fertig',failed:'fehlgeschlagen',slicing:'rechnet',init:'startet',offline:'aus'};
+  function druckLaeuft(){return !!PRN&&(PRN.status==='running'||PRN.status==='prepare'||PRN.status==='pause'||PRN.status==='slicing');}
+  function stundenText(h){h=parseFloat(h);if(!isFinite(h)||h<=0)return '';var m=Math.round(h*60);return Math.floor(m/60)+':'+('0'+(m%60)).slice(-2)+' h';}
+  function druckerKurz(p,s){
+    if(!PRN){return null;}
+    if(PRN.online===false)return 'aus';
+    if(PRN.fehler)return 'Fehler';
+    if(druckLaeuft()){var pr=parseFloat(PRN.fortschritt);return (isFinite(pr)?Math.round(pr)+' %':DR_STATUS[PRN.status])+(stundenText(PRN.rest)?' · '+stundenText(PRN.rest):'');}
+    return DR_STATUS[PRN.status]||PRN.status||'bereit';}
   function zeichnen(){
     PTS.forEach(function(p){var s=zustand(p),sym=SYM[p.symbol||autoSym(p.entity_id,s||entInfo(p.entity_id))]||SYM.punkt,el=p.el;
       p.rund=schaltbar(p)||(!p.entity_id&&!!p.lampe);
       el.className=p.rund?'bulb':'sens';
       if(p.rund){el.innerHTML=sym.svg||'<b>'+sym.c+'</b>';el.classList.toggle('on',istAn(p));}
-      else el.innerHTML='<i>'+(sym.svg||sym.c)+'</i>'+esc(p.name||(s&&s.n)||'Punkt')+' <span>'+esc(wert(p,s))+'</span>';
-      if(!p.entity_id&&istPanel)el.classList.add('frei');
+      else{var dk=sym===SYM.drucker?druckerKurz(p,s):null;el.innerHTML='<i>'+(sym.svg||sym.c)+'</i>'+esc(p.name||(s&&s.n)||'Punkt')+' <span>'+esc(dk!=null?dk:wert(p,s))+'</span>';if(dk!=null){el.classList.toggle('druckt',druckLaeuft());el.classList.toggle('fehler',!!PRN.fehler);}}
+      if(!p.entity_id&&istPanel&&!(sym===SYM.drucker&&PRN))el.classList.add('frei');
       if(s&&s.aktion==='heating')el.classList.add('heizt');
       el.title=(p.name||'Punkt')+(p.entity_id?' · '+p.entity_id:' · noch kein Gerät verbunden');
       el.setAttribute('aria-label',(p.name||'Punkt')+(p.rund?' schalten':''));
@@ -750,7 +770,7 @@ body.schmal #title{left:60px}
     ctx.innerHTML='';
     if(!cur){
       var lichter=PTS.filter(istLicht),an=lichter.filter(istAn);
-      var s=document.createElement('span');s.className='stat';s.textContent=an.length+' von '+lichter.length+' Lichtern an'+(WARNS.length?' · ⚠ '+WARNS.length+(WARNS.length===1?' Warnung':' Warnungen'):'');ctx.appendChild(s);
+      var s=document.createElement('span');s.className='stat';s.textContent=an.length+' von '+lichter.length+' Lichtern an'+(function(){var lu=WARNS.filter(function(w){return w.luft}).length,wa=WARNS.length-lu;return (wa?' · ⚠ '+wa+(wa===1?' Warnung':' Warnungen'):'')+(lu?' · 💨 '+lu+' × lüften':'');})();ctx.appendChild(s);
       Object.keys(SZ).forEach(function(k){var sz=SZ[k];ctx.appendChild(mkBtn(edit?'✕ '+sz.name:sz.name,function(){if(edit){delete SZ[k];szSpeichern();refresh();}else szeneAnwenden(sz);},'sz',edit?'Szene '+sz.name+' löschen':'Szene '+sz.name));});
       if(admin)ctx.appendChild(mkBtn('＋ Szene',szNeu,'','Aktuellen Zustand als Szene speichern'));
       var sp=document.createElement('span');sp.className='sp';ctx.appendChild(sp);
@@ -830,11 +850,12 @@ body.schmal #title{left:60px}
   var dSheet=document.getElementById('dSheet'),dRq=0,dP=null,dStd=24,dDaten=null;
   var D_ZEIT=[[6,'6 h'],[24,'24 h'],[168,'7 Tage']];
   function dZu(){dSheet.hidden=true;dock.hidden=false;dP=null;}
-  function dOeffnen(p){dP=p;dSheet.hidden=false;dock.hidden=true;hint.hidden=true;
+  function istDrucker(p){return !!p&&p.symbol==='drucker'&&(PRN||!istPanel);}
+  function dOeffnen(p){dP=p;dSheet.hidden=false;dock.hidden=true;hint.hidden=true;document.getElementById('dR').hidden=istDrucker(p);
     document.getElementById('dT').textContent=p.name||(zustand(p)&&zustand(p).n)||'Sensor';
     var r=document.getElementById('dR');r.innerHTML='';
     D_ZEIT.forEach(function(z){r.appendChild(mkBtn(z[1],function(){dStd=z[0];dOeffnenZeit();},dStd===z[0]?'on':''));});
-    dWert();dLaden();}
+    dWert();if(istDrucker(p)){dDrucker();return;}dLaden();}
   function dOeffnenZeit(){if(!dP)return;var r=document.getElementById('dR');[].forEach.call(r.children,function(b,i){b.classList.toggle('on',D_ZEIT[i][0]===dStd);});dLaden();}
   function dLaden(){dDaten=null;dZeichnen();var id=++dRq;
     if(istPanel){senden({type:'raum-hist',id:id,entity:dP.entity_id,stunden:dStd});return;}
@@ -842,9 +863,33 @@ body.schmal #title{left:60px}
     var n=Date.now(),a=[],k=dStd*6,s=zustand(dP),b=s?parseFloat(s.s):NaN;if(!isFinite(b))b=21;
     for(var i=0;i<=k;i++)a.push([n-(k-i)*600000,Math.round((b+1.6*Math.sin(i/k*6.3*dStd/24)+Math.sin(i*1.7)*.15)*10)/10]);
     setTimeout(function(){if(id===dRq){dDaten=a;dZeichnen();}},200);}
-  function dWert(){if(!dP)return;var s=zustand(dP),w=document.getElementById('dW');
+  function dWert(){if(!dP)return;if(istDrucker(dP)){dDrucker();return;}var s=zustand(dP),w=document.getElementById('dW');
     var d=dP.entity_id&&dom(dP.entity_id);
     w.innerHTML=s?esc(wert(dP,s))+(d==='climate'&&s.s?'<small>'+esc(({heat:'heizt',off:'aus',auto:'auto',cool:'kühlt'})[s.s]||s.s)+'</small>':'')+(s.lc?'<small>seit '+esc(dZeit(s.lc))+'</small>':''):'–';}
+  var dStrom=0;
+  function dDrucker(){var w=document.getElementById('dW'),g=document.getElementById('dG'),st=document.getElementById('dS');st.innerHTML='';
+    var d=PRN||{},pl=zustand(dP),ein=pl?!!pl.on:true,pr=parseFloat(d.fortschritt);
+    w.innerHTML=esc(d.online===false?'aus':(DR_STATUS[d.status]||d.status||'bereit'))+(druckLaeuft()&&isFinite(pr)?'<small>'+Math.round(pr)+' %</small>':'');
+    function k(t,v,u){return '<div>'+esc(t)+'<b>'+esc(v)+'</b>'+(u?'<small>'+esc(u)+'</small>':'')+'</div>';}
+    function grad(a,z){var x=parseFloat(a);return isFinite(x)?Math.round(x)+' °C':'–';}
+    var zt=function(z){z=parseFloat(z);return z>0?'Ziel '+Math.round(z)+' °C':'aus';};
+    var ende='';if(d.ende&&/\d{4}-\d\d-\d\d/.test(d.ende)&&druckLaeuft()){var e=new Date(d.ende);if(isFinite(e))ende=('0'+e.getHours()).slice(-2)+':'+('0'+e.getMinutes()).slice(-2)+' Uhr';}
+    var h='';
+    if(druckLaeuft()&&isFinite(pr))h+='<div class="pbar" role="progressbar" aria-valuenow="'+Math.round(pr)+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+Math.max(0,Math.min(100,pr))+'%"></i></div>';
+    h+='<div class="raster">';
+    if(d.aufgabe&&d.aufgabe!=='unknown'&&d.aufgabe!=='unavailable'&&druckLaeuft())h+=k('Druck',d.aufgabe);
+    if(druckLaeuft()){h+=k('Restzeit',stundenText(d.rest)||'–',ende?'fertig um '+ende:'');
+      var sc=parseInt(d.schicht,10),sa=parseInt(d.schichten,10);if(sa>0)h+=k('Schicht',sc+' von '+sa);}
+    h+=k('Düse',grad(d.duese),zt(d.duese_ziel))+k('Druckbett',grad(d.bett),zt(d.bett_ziel));
+    h+='</div>';
+    if(d.fehler)h+='<div class="stats"><span style="color:#f87171">Der Drucker meldet einen Fehler.</span></div>';
+    if(dP.entity_id&&dom(dP.entity_id)==='switch')h+='<div class="row"><span class="sp"></span><button type="button" id="dStrom"'+(dStrom?' class="on"':'')+'>'+(dStrom?'Wirklich ausschalten?'+(druckLaeuft()?' Der Druck läuft!':''):(ein?'Drucker-Strom ausschalten':'Drucker-Strom einschalten'))+'</button></div>';
+    g.innerHTML=h;
+    var b=document.getElementById('dStrom');
+    if(b)b.onclick=function(){
+      if(ein&&!dStrom){dStrom=1;dDrucker();setTimeout(function(){dStrom=0;if(dP&&istDrucker(dP))dDrucker();},4000);return;}
+      dStrom=0;senden({type:'raum-call',ids:[dP.entity_id],on:!ein});if(pl)pl.on=!ein;dDrucker();};
+  }
   function dZeit(ms){var d=new Date(ms),h=Date.now()-ms;if(h<36e5)return Math.max(1,Math.round(h/6e4))+' min';if(h<864e5)return Math.round(h/36e5)+' h';return d.toLocaleDateString('de-DE',{day:'numeric',month:'short'});}
   function dZeichnen(){var g=document.getElementById('dG'),st=document.getElementById('dS');st.innerHTML='';
     if(!dDaten){g.innerHTML='<div class="leer">'+(dDaten===null?'Verlauf wird geladen …':'Kein Verlauf verfügbar')+'</div>';return;}
@@ -905,11 +950,12 @@ body.schmal #title{left:60px}
     else if(m.type==='raum-entities'){ENT=m.list||[];aufbauen();if(ed)liste();}
     else if(m.type==='raum-punkte'){OVR=m.punkte||{};SZ=m.szenen||{};aufbauen();}
     else if(m.type==='raum-histdata'){if(m.id===dRq){dDaten=m.serie?(m.serie.length?m.serie:'x'):false;dZeichnen();}}
-    else if(m.type==='raum-sky'){SKY=m.himmel||{sonne:null,wetter:null};}
+    else if(m.type==='raum-drucker'){PRN=m.drucker||null;zeichnen();}
+    else if(m.type==='raum-sky'){SKY=m.himmel||{sonne:null,wetter:null};zeichnen();}
     else if(m.type==='raum-states'){ST=m.v||{};zeichnen();refresh();}
     else if(m.type==='raum-fehler'){hinweis(m.text||'Speichern hat nicht geklappt.');hint.hidden=false;}
   });
-  if(!istPanel)try{OVR=JSON.parse(localStorage.getItem('raum-punkte')||'{}')||{};}catch(e){OVR={};}
+  if(!istPanel){PRN={status:'running',fortschritt:42,rest:1.2,duese:215,duese_ziel:220,bett:60,bett_ziel:60,aufgabe:'Kabelhalter',schicht:120,schichten:310,online:true,fehler:false,ende:new Date(Date.now()+4320000).toISOString()};try{OVR=JSON.parse(localStorage.getItem('raum-punkte')||'{}')||{};}catch(e){OVR={};}}
   editBtn.hidden=!admin;
 
   // Tippen auf den Boden fokussiert den Raum, Tippen ins Leere zeigt wieder alles; beim Bearbeiten setzt Tippen einen Punkt
@@ -1052,11 +1098,28 @@ body.schmal #title{left:60px}
         L.push({k:'f'+p.id,p:p,t:nm+' ist offen und die Heizung heizt'});
       if(sym==='tuer'&&s.s==='on'&&/k[üu]e?hl|gefrier|tiefk/i.test(nm)&&s.lc&&jetzt-s.lc>180000)
         L.push({k:'t'+p.id,p:p,t:nm+' seit '+Math.round((jetzt-s.lc)/60000)+' min offen'});});
+    lueften(L);
     return L;}
+  // Lüften: Luftfeuchte über 65 % (bis sie unter 60 % fällt) oder CO₂ über 1000 ppm, nur bei geschlossenem Fenster
+  // und, wenn die Wetterdaten da sind, nur wenn die Außenluft absolut trockener ist als die Raumluft
+  var LUFT_AN={};
+  function absFeuchte(t,rh){return 216.7*(rh/100*6.112*Math.exp(17.62*t/(243.12+t)))/(273.15+t);}
+  function lueften(L){
+    PTS.forEach(function(p){var s=p.entity_id?ST[p.entity_id]:null;if(!s||dom(p.entity_id)!=='sensor')return;
+      var v=parseFloat(s.s),r=ROOMS.filter(function(x){return x.id===p.raum})[0];if(!isFinite(v)||!r)return;
+      var fenster=PTS.some(function(q){var qs=q.entity_id?ST[q.entity_id]:null;return qs&&qs.s==='on'&&gleich(q.raum,p.raum)&&(q.symbol||autoSym(q.entity_id,qs))==='fenster';});
+      var nm=r.n,t=null,k='l'+p.id;
+      if(s.dc==='carbon_dioxide'){if(v>1000&&!fenster)t='Die Luft im '+nm+' ist verbraucht ('+Math.round(v)+' ppm CO₂), bitte lüften';}
+      else if(s.dc==='humidity'&&/%/.test(s.u||'')){
+        var an=LUFT_AN[p.id]?v>=60:v>65,ausnutz=true,tr=raumTemp(r),w=SKY.wetter;
+        if(an&&tr!=null&&w&&w.temp!=null&&w.feuchte!=null)ausnutz=absFeuchte(w.temp,w.feuchte)<absFeuchte(tr,v)*.95;
+        LUFT_AN[p.id]=an&&ausnutz&&!fenster;
+        if(LUFT_AN[p.id])t='Luftfeuchte im '+nm+' bei '+Math.round(v)+' %, bitte lüften'+(w&&w.temp!=null?' (draußen ist es trockener)':'');}
+      if(t)L.push({k:k,p:p,t:t,luft:true});});}
   function warnZeigen(){
     var L=warnungen(),keep={};
     L.forEach(function(w){keep[w.k]=1;var el=WARNEL[w.k];
-      if(!el){el=WARNEL[w.k]=document.createElement('button');el.type='button';el.className='warn';el.textContent='⚠';pinsEl.appendChild(el);}
+      if(!el){el=WARNEL[w.k]=document.createElement('button');el.type='button';el.className='warn'+(w.luft?' luft':'');el.textContent=w.luft?'💨':'⚠';pinsEl.appendChild(el);}
       el.title=w.t;el.setAttribute('aria-label','Warnung: '+w.t);
       el.onclick=function(){var r=ROOMS.filter(function(x){return gleich(x.id,w.p.raum)})[0];if(r&&cur!==r)focus(r);hinweis(w.t);hint.hidden=false;setTimeout(function(){if(!edit&&!wartet)hinweis('');},4000);};w.el=el;});
     Object.keys(WARNEL).forEach(function(k){if(!keep[k]){WARNEL[k].remove();delete WARNEL[k];}});
