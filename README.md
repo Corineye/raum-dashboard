@@ -52,3 +52,15 @@ Die Lampen und Sensoren im Arbeitszimmer sowie Robi werden beim ersten Öffnen �
 
 - **Warnsymbole** erscheinen im Raum: Fenster offen, während geheizt wird; Kühl- oder Gefrierschrank-Tür länger als 3 Minuten offen (Name enthält „Kühl“, „Gefrier“ oder „Tief“); Gerät nicht erreichbar. Die Anzahl steht unten im Dock.
 - **Szenen**: unten „＋ Szene“ (nur Administratoren) speichert, welche Lampen und Schalter gerade an und aus sind. Antippen stellt sie wieder her. Im Bearbeiten-Modus löscht „✕ Name“ eine Szene. Gespeichert in Home Assistant, auf allen Geräten gleich.
+
+## Sensor-Details
+
+Tippt man in der Wohnung auf ein Sensor-Schild (Temperatur, Luftfeuchte, Fenster, Heizung …), öffnet sich ein Fenster mit dem aktuellen Wert und einem Verlauf der letzten 6 Stunden, 24 Stunden oder 7 Tage. Über den Graphen streichen zeigt den Wert zu einer Uhrzeit. Nach unten wischen oder ✕ schließt es. Der Verlauf kommt aus dem Recorder von Home Assistant, das Gerät muss also aufgezeichnet werden (Standard).
+
+## Drucker im Plan
+
+Hast du den Bambu-Lab-Drucker in Home Assistant (Entitäten „… Druckstatus“, „… Druckfortschritt“ usw.), zeigt das Drucker-Schild den Stand direkt an („42 % · 1:12 h“). Ein Tipp öffnet Details: Fortschrittsbalken, Restzeit mit Endzeit, Name des Drucks, Schicht, Düse und Druckbett mit Zieltemperatur. Der Drucker-Strom lässt sich dort aus- und einschalten, bei laufendem Druck erst nach einer zweiten Bestätigung. Das Drucker-Schild schaltet die Steckdose nicht mehr per Antippen und kommt nicht in Szenen oder „Alles aus“.
+
+## Lüften-Hinweis
+
+Ein 💨 erscheint am Sensor, wenn die Luftfeuchte über 65 % steigt (bis sie unter 60 % fällt) oder CO₂ über 1000 ppm liegt, solange im Raum kein Fenster offen ist. Gibt es eine Wetter-Entität mit Temperatur und Feuchte, kommt der Hinweis nur, wenn die Außenluft absolut trockener ist als die Raumluft, sonst bringt Lüften nichts.
